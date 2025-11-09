@@ -31,17 +31,19 @@ class Tile:
     """Representa uma célula (tile) do cenário.
 
     Responsabilidade:
-        - Guardar o sprite e as coordenadas do tile no mapa.
+        - Guardar o sprite base do tile, suas coordenadas no mapa e a sobreposição
+          (overlay), se houver.
 
     Contrato:
         - Entrada: sprite (Sprite), coord_x (int), coord_y (int)
-        - Saída: objeto Tile com métodos simples.
+        - Saída: objeto Tile com métodos para desenhar e gerenciar overlays.
 
     Comportamento:
-        - Pode desenhar o seu sprite na tela e informar suas coordenadas.
+        - Desenha o sprite base e, se presente, desenha a overlay centralizada.
 
     Regras:
         - Coord_x e coord_y representam posições no grid (0,1,2...).
+        - A overlay é opcional e, quando adicionada, permanece até ser substituída.
     """
 
     def __init__(self, sprite, coord_x, coord_y):
@@ -50,7 +52,67 @@ class Tile:
         self.coord_y = coord_y
 
     def draw(self):
+        # Desenha o tile base
         self.sprite.draw()
+
+        # Se existir uma sobreposição, desenha por cima do tile
+        if hasattr(self, "overlay") and self.overlay is not None:
+            self.overlay.draw()
+
+    def has_overlay(self):
+        """Retorna True se o tile já tem uma sobreposição (overlay)."""
+        return hasattr(self, "overlay") and self.overlay is not None
+
+    def add_overlay(self, image_path=None):
+        """Adiciona uma imagem de sobreposição centralizada no tile.
+
+        Responsabilidade:
+            - Criar e posicionar um sprite de sobreposição para este tile.
+
+        Contrato:
+            - Entrada: image_path (str) opcional, caminho para a imagem da sobreposição.
+                       Se None, usa a imagem padrão de escavação.
+            - Saída: True se a sobreposição foi adicionada, False se já existia.
+
+        Comportamento:
+            - Primeiro verifica se já existe uma sobreposição (otimização).
+            - Se não existir, cria um Sprite, centraliza sobre o tile e guarda em self.overlay.
+        """
+        # Testa se já existe sobreposição - se sim, não faz nada
+        if self.has_overlay():
+            return False
+
+        # Caminho padrão da sobreposição (pode ser substituído por outro arquivo)
+        if image_path is None:
+            image_path = "assets/Escavação da superficie do deserto.png"
+
+        # Cria o sprite da sobreposição
+        ov = Sprite(image_path)
+
+        # Centraliza a sobreposição sobre o tile
+        ov.x = self.sprite.x + (self.sprite.width - ov.width) / 2
+        ov.y = self.sprite.y + (self.sprite.height - ov.height) / 2
+
+        # Registra a sobreposição no tile
+        self.overlay = ov
+        self.overlay_path = image_path
+        return True
+
+    def set_overlay(self, image_path):
+        """Define (ou substitui) a sobreposição do tile para outra imagem.
+
+        Se já existir uma sobreposição, ela é substituída pela nova.
+        """
+        # Se já existir, substitui; se não, chama add_overlay
+        if self.has_overlay():
+            ov = Sprite(image_path)
+            ov.x = self.sprite.x + (self.sprite.width - ov.width) / 2
+            ov.y = self.sprite.y + (self.sprite.height - ov.height) / 2
+            self.overlay = ov
+            self.overlay_path = image_path
+            return True
+        else:
+            return self.add_overlay(image_path)
 
     def get_position(self):
         return (self.coord_x, self.coord_y)
@@ -182,7 +244,7 @@ class Player:
     """
 
     def __init__(self, x, y):
-        # Carrega frames de animação
+    # Carrega 4 frames de animação (2 para a direita, 2 para a esquerda)
         self.d1 = Sprite("assets/protagonistaD1.png")
         self.d2 = Sprite("assets/protagonistaD2.png")
         self.e1 = Sprite("assets/protagonistaE1.png")
@@ -211,7 +273,7 @@ class Player:
         """
         moving = False
 
-        # distância a mover neste frame, baseada no delta time
+        # distância a mover nesta atualização, baseada no delta time (dt em segundos)
         move_amount = self.speed * dt
 
         # Movimento horizontal
@@ -296,6 +358,17 @@ while True:
 
     # Atualiza player (entrada + animação) usando dt (movimento e animação)
     player.update(teclado, dt)
+
+    # Ao pressionar ESPAÇO, tenta adicionar uma sobreposição (escavação)
+    # no tile onde o jogador está. Se o tile já tem overlay, não faz nada.
+    if teclado.key_pressed("SPACE"):
+        # Converte posição do jogador (pixels) para coordenadas do grid (tiles)
+        coord_x = int(player.x / largura_tile)
+        coord_y = int(player.y / altura_tile)
+        t = encontrar_tile(coord_x, coord_y)
+        if t is not None:
+            # add_overlay retorna False se já existe, True se adicionou
+            t.add_overlay()
 
     # Desenha os tiles do cenário
     for t in todos_os_tiles:
