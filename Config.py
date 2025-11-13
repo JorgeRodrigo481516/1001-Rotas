@@ -38,6 +38,13 @@ HUD_ELEMENT_SPACING = 10     # pixels entre ícones/barras centrais
 HUD_SLOTS = 8                # número de slots exibidos no canto direito
 HUD_SLOT_RIGHT_MARGIN = 20   # margem à direita (pixels)
 
+# HUD fill behavior: padding inside the bar (pixels) and spacing between fill blocks
+# Margens internas assíncronas: padding esquerdo e direito (pixels)
+HUD_FILL_PADDING_LEFT = 7   # padding interno à esquerda (pixels)
+HUD_FILL_PADDING_RIGHT = 4  # padding interno à direita (pixels)
+# Espaçamento entre blocos de preenchimento (pixels)
+HUD_FILL_SPACING = 0
+
 # Player - parâmetros padrão (unidades simples)
 # Velocidade de movimento do jogador em pixels por segundo.
 PLAYER_SPEED = 70.0
@@ -58,7 +65,23 @@ ASSETS = {
     'hud_sede': "assets/spritesheet HUD sede.png",
     'slot': "assets/spritesheet HUD slot (1).png",
     'overlay_default': "assets/Escavação da superficie do deserto.png",
+    'agua': "assets/agua.png",
 }
+
+# HUD visual adjustments: grouped and documented
+# - HUD_BAR_FILLS: list of image paths used (from left to right)
+# - HUD_FILL_PADDING_LEFT / RIGHT: internal padding in pixels
+# - HUD_FILL_SPACING: spacing between blocks in pixels
+HUD_BAR_FILLS = [
+    "assets/barra cor 1.png",
+    "assets/barra cor 2.png",
+    "assets/barra cor 3.png",
+    "assets/barra cor 4.png",
+    "assets/barra cor 5.png",
+    "assets/barra cor 6.png",
+    "assets/barra cor 7.png",
+    "assets/barra cor 8.png",
+]
 
 # TILE_WIDTH / TILE_HEIGHT: preenchidos em runtime pelo módulo `Mapa` após carregar
 # o primeiro tile. Servem como cache global para que outros módulos saibam o
