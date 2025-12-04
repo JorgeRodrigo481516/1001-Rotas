@@ -1,286 +1,162 @@
-"""Mapa - carregar, construir e acessar tiles do cenário.
-
-Responsabilidade:
-        - Construir a grade de tiles que cobre a janela do jogo.
-        - Fornecer uma API simples para localizar tiles por (col,row) ou por pixel.
-
-Contrato (uso rápido):
-        - Impor que `Config.ASSETS['tile_base_pattern']` esteja definido para criar tiles.
-        - Depois de `build()` ser chamado: `tiles`, `tiles_by_coord`, `tile_width` e
-            `tile_height` estarão disponíveis.
-
-Notas:
-        - Um "Tile" é uma célula da grade com um sprite base e opcionalmente uma
-            overlay (por exemplo: um item cavado).
-        - As funções de escavação foram centralizadas aqui: `start_excavation`,
-            `update_excavation`, `is_excavating` e `excavation_progress`.
 """
+-------------------------------------------------------------------
+DESCRIÇÃO:
+    Gerencia a construção do cenário, tiles (azulejos) e mecânica de escavação.
 
+RESPONSABILIDADE:
+    1. Gerar o grid de azulejos baseado na configuração.
+    2. Gerenciar sobreposições (overlays) nos tiles.
+    3. Controlar a lógica e temporização da escavação.
+    4. Determinar se itens são encontrados ao escavar.
+
+REGRAS DE USO:
+    - 'construir()' deve ser chamado após inicialização.
+    - Depende de recursos definidos em config.py.
+
+NOTAS DE IMPLEMENTAÇÃO:
+    - Usa sistema de grid (coluna, linha) mapeado para pixels.
+    - Escavação é assíncrona (baseada em tempo).
+-------------------------------------------------------------------
+"""
 from PPlay.sprite import Sprite
-import Config
+import config
 import random
 
 
-class Tile:
-    """Representa uma célula (tile) do mapa.
-
-    Responsabilidade:
-        - Guardar o `sprite` base do tile, posição na grade (`column`, `row`) e
-          uma `overlay_sprite` opcional (por exemplo: item cavado).
-
-    Contrato (entrada/saída):
-        - __init__(sprite, column, row): recebe um `Sprite` já carregado e
-          inteiros para coluna/linha.
-        - Métodos públicos: `draw()`, `add_overlay(image_path)`, `has_overlay()`.
-
-    Comportamento:
-        - `draw()` sempre desenha o sprite base; se `overlay_sprite` existir,
-          ela é desenhada por cima, centralizada.
-
-    Regras/Notas:
-        - `add_overlay()` retorna False se já existir overlay (evita duplicatas).
-        - A overlay é posicionada centralmente dentro dos limites do tile.
-    """
-
-    def __init__(self, sprite, column, row):
-        # sprite que representa o tile
+class Azulejo:
+    def __init__(self, sprite, coluna, linha):
         self.sprite = sprite
-        # nomes mais descritivos: coluna e linha na grade
-        self.column = column
-        self.row = row
-        # overlay principal (pode ser None)
-        self.overlay_sprite = None
+        self.coluna = coluna
+        self.linha = linha
+        self.sprite_sobreposicao = None
 
-    def draw(self):
-        """Desenha a imagem base e, se houver, desenha a overlay por cima."""
+    def desenhar(self):
         self.sprite.draw()
-        if self.overlay_sprite:
-            self.overlay_sprite.draw()
+        if self.sprite_sobreposicao:
+            self.sprite_sobreposicao.draw()
 
-    def has_overlay(self):
-        """Retorna True se o tile tem uma overlay_sprite, False caso contrário."""
-        return self.overlay_sprite is not None
+    def tem_sobreposicao(self):
+        return self.sprite_sobreposicao is not None
 
-    def add_overlay(self, image_path=None):
-        """Adiciona uma overlay (overlay_sprite) no centro do tile.
-
-        Retorna True se adicionou, False se já existia.
-        """
-        if self.has_overlay():
+    def adicionar_sobreposicao(self, caminho_imagem=None):
+        if self.tem_sobreposicao():
             return False
-        if image_path is None:
-            image_path = Config.ASSETS['overlay_default']
-        # cria o sprite da overlay (overlay_sprite) e centraliza dentro do tile
-        overlay_sprite = Sprite(image_path)
-        overlay_sprite.x = self.sprite.x + (self.sprite.width - overlay_sprite.width) / 2
-        overlay_sprite.y = self.sprite.y + (self.sprite.height - overlay_sprite.height) / 2
-        # guarda o sprite da overlay no tile
-        self.overlay_sprite = overlay_sprite
+        if caminho_imagem is None:
+            caminho_imagem = config.RECURSOS['overlay_default']
+        sprite_sobreposicao = Sprite(caminho_imagem)
+        sprite_sobreposicao.x = self.sprite.x + (self.sprite.width - sprite_sobreposicao.width) / 2
+        sprite_sobreposicao.y = self.sprite.y + (self.sprite.height - sprite_sobreposicao.height) / 2
+        self.sprite_sobreposicao = sprite_sobreposicao
         return True
 
 
 class Mapa:
-    """Constrói e fornece acesso à grade de tiles do mapa.
-
-    Responsabilidade:
-        - Gerar os objetos `Tile` que cobrem a janela e permitir busca por
-          coordenadas de grid ou pixel.
-
-    Contrato (entrada/saída):
-        - Entrada no construtor: `janela`, `tile_width`/`tile_height` opcionais.
-        - Saída: atributos `tiles`, `tiles_by_coord`, `tile_width`, `tile_height`.
-    """
-
-    def __init__(self, janela, tile_width=None, tile_height=None):
-        """Inicializa o mapa com referência à janela e dimensões dos tiles."""
+    def __init__(self, janela, largura_tile=None, altura_tile=None):
         self.janela = janela
-        self.tile_width = tile_width
-        self.tile_height = tile_height
-        self.tiles = []
-        self.tiles_by_coord = {}
-        # estado de escavação (um único processo de escavação por vez)
-        # target: tupla (col, row) ou (None, None)
-        self._excavating = False
-        self._excav_target = (None, None)
-        self._excav_timer = 0.0
-        self._excav_duration = 2.0  # segundos necessários para escavar
+        self.largura_tile = largura_tile
+        self.altura_tile = altura_tile
+        self.azulejos = []
+        self.azulejos_por_coordenada = {}
+        self._escavando = False
+        self._alvo_escavacao = (None, None)
+        self._temporizador_escavacao = 0.0
+        self._duracao_escavacao = 2.0
 
-    def build(self):
-        """Construir a grade de tiles que cobre a janela.
-
-        Processo resumido:
-        1. Lê `Config.ASSETS['tile_base_pattern']` para obter um exemplo de tile.
-        2. Deduz `tile_width`/`tile_height` (se não fornecidos) e armazena em `Config`.
-        3. Calcula quantos tiles cabem horizontal/verticalmente.
-        4. Para cada célula (coluna, linha) (exceto linhas do HUD) cria um `Tile`.
-        """
-
-        caminho_base = Config.ASSETS.get('tile_base_pattern')
+    def construir(self):
+        caminho_base = config.RECURSOS.get('tile_base_pattern')
         if caminho_base is None:
-            raise RuntimeError('Config.ASSETS["tile_base_pattern"] must be set')
+            raise RuntimeError('config.RECURSOS["tile_base_pattern"] must be set')
 
-        # Carrega um sprite de exemplo para determinar a largura/altura do tile
         exemplo = Sprite(caminho_base)
-        self.tile_width = exemplo.width
-        self.tile_height = exemplo.height
+        self.largura_tile = exemplo.width
+        self.altura_tile = exemplo.height
 
-        # Guarda as dimensões em Config para outros módulos (por exemplo Player)
-        Config.TILE_WIDTH = self.tile_width
-        Config.TILE_HEIGHT = self.tile_height
+        config.LARGURA_TILE = self.largura_tile
+        config.ALTURA_TILE = self.altura_tile
 
-        # Quantos tiles cabem horizontal e verticalmente (adicionamos +1 para cobrir bordas)
-        num_colunas = int(self.janela.width / self.tile_width) + 1
-        num_linhas = int(self.janela.height / self.tile_height) + 1
+        num_colunas = int(self.janela.width / self.largura_tile) + 1
+        num_linhas = int(self.janela.height / self.altura_tile) + 1
 
-        # Prepara um padrão de filename para variações (ex.: 'tile{} .png')
-        # usando operações de string para manter o código portátil e claro.
         if '.' in caminho_base:
-            idx = caminho_base.rfind('.')
-            base_name = caminho_base[:idx]
-            ext = caminho_base[idx:]
+            indice = caminho_base.rfind('.')
+            nome_base = caminho_base[:indice]
+            extensao = caminho_base[indice:]
         else:
-            base_name = caminho_base
-            ext = ''
-        # Se o caminho original contiver '{}', mantemos esse padrão
+            nome_base = caminho_base
+            extensao = ''
         if '{}' in caminho_base:
             padrao_arquivo = caminho_base
-        elif base_name.endswith('1'):
-            # transforma 'tile1.png' em 'tile{} .png'
-            padrao_arquivo = f"{base_name[:-1]}{{}}{ext}"
+        elif nome_base.endswith('1'):
+            padrao_arquivo = f"{nome_base[:-1]}{{}}{extensao}"
         else:
-            padrao_arquivo = f"{base_name}{{}}{ext}"
+            padrao_arquivo = f"{nome_base}{{}}{extensao}"
 
-        # Itera pelas linhas/colunas, pulando as linhas reservadas ao HUD
-        linha_inicio_hud = Config.HUD_HEIGHT_IN_TILES
+        linha_inicio_hud = config.ALTURA_HUD_EM_TILES
         usa_placeholder = '{}' in padrao_arquivo
 
         for linha in range(linha_inicio_hud, num_linhas):
             for coluna in range(num_colunas):
                 indice_variacao = random.randint(1, 6)
-                caminho_tile = padrao_arquivo.format(indice_variacao) if usa_placeholder else caminho_base
+                caminho_azulejo = padrao_arquivo.format(indice_variacao) if usa_placeholder else caminho_base
 
-                sprite_tile = Sprite(caminho_tile)
-                sprite_tile.x = coluna * self.tile_width
-                sprite_tile.y = linha * self.tile_height
+                sprite_azulejo = Sprite(caminho_azulejo)
+                sprite_azulejo.x = coluna * self.largura_tile
+                sprite_azulejo.y = linha * self.altura_tile
 
-                novo_tile = Tile(sprite_tile, coluna, linha)
-                self.tiles.append(novo_tile)
-                self.tiles_by_coord[(coluna, linha)] = novo_tile
+                novo_azulejo = Azulejo(sprite_azulejo, coluna, linha)
+                self.azulejos.append(novo_azulejo)
+                self.azulejos_por_coordenada[(coluna, linha)] = novo_azulejo
 
-    def get_tile_by_grid(self, col, row):
-        """Retorna o objeto Tile na coluna/linha (col, row) ou None se ausente.
+    def obter_azulejo_grade(self, coluna, linha):
+        return self.azulejos_por_coordenada.get((coluna, linha))
 
-        Contrato:
-            - Entrada: `col`, `row` inteiros.
-            - Saída: `Tile` ou `None`.
-        """
-        return self.tiles_by_coord.get((col, row))
+    def obter_azulejo_pixel(self, px, py):
+        if not self.largura_tile or not self.altura_tile:
+            raise ValueError('Mapa.largura_tile/altura_tile must be set')
+        return self.obter_azulejo_grade(int(px / self.largura_tile), int(py / self.altura_tile))
 
-    def get_tile_by_pixel(self, px, py):
-        """Retorna o Tile que contém o pixel (px, py).
-
-        Contrato:
-            - Entrada: `px`, `py` coordenadas em pixels.
-            - Saída: `Tile` ou `None`.
-
-        Regras:
-            - Lança ValueError se `tile_width`/`tile_height` não estiverem definidos
-              (necessário para converter pixels → grid).
-        """
-        if not self.tile_width or not self.tile_height:
-            raise ValueError('Mapa.tile_width/height must be set')
-        return self.get_tile_by_grid(int(px / self.tile_width), int(py / self.tile_height))
-
-    def add_overlay_at(self, col, row, image_path=None):
-        """Adiciona uma overlay (overlay_sprite) no tile da posição (col, row).
-
-        Comportamento:
-            - Se o tile existir e não tiver overlay, cria a overlay e retorna True.
-            - Caso contrário retorna False (tile ausente ou já tem overlay).
-        """
-        tile = self.get_tile_by_grid(col, row)
-        if tile:
-            return tile.add_overlay(image_path)
+    def adicionar_sobreposicao_em(self, coluna, linha, caminho_imagem=None):
+        azulejo = self.obter_azulejo_grade(coluna, linha)
+        if azulejo:
+            return azulejo.adicionar_sobreposicao(caminho_imagem)
         return False
 
-    # --- Escavação (moved logic) ---------------------------------------
-    def start_excavation(self, col, row):
-        """Inicia um processo de escavação no tile (col,row).
-
-        Contrato:
-            - Entrada: `col`, `row` inteiros indicando o tile alvo.
-            - Saída: True se a escavação começou, False caso contrário.
-
-        Regras / Comportamento:
-            - Só é possível iniciar uma escavação se não houver outra em andamento
-              e se o tile existir e não tiver overlay.
-            - Ao iniciar, o estado interno `_excavating` é marcado como True e o
-              timer (`_excav_timer`) é zerado.
-        """
-        if self._excavating:
+    def iniciar_escavacao(self, coluna, linha):
+        if self._escavando:
             return False
-        tile = self.get_tile_by_grid(col, row)
-        if tile is None:
+        azulejo = self.obter_azulejo_grade(coluna, linha)
+        if azulejo is None:
             return False
-        if tile.has_overlay():
+        if azulejo.tem_sobreposicao():
             return False
-        # iniciar escavação
-        self._excavating = True
-        self._excav_target = (col, row)
-        self._excav_timer = 0.0
+        self._escavando = True
+        self._alvo_escavacao = (coluna, linha)
+        self._temporizador_escavacao = 0.0
         return True
 
-    def update_excavation(self, dt):
-        """Atualiza o timer de escavação. Deve ser chamado a cada frame com dt.
-
-        Contrato:
-            - Entrada: `dt` (float) tempo em segundos desde o último frame.
-            - Saída: tupla `(finished, added)`:
-                * finished (bool): True se o processo terminou neste passo.
-                * added (bool): True se uma overlay foi efetivamente adicionada.
-
-        Notas:
-            - Retorna (False, False) imediatamente se não houver escavação em andamento.
-            - Quando o timer atinge `_excav_duration` a overlay é tentada e o
-              estado de escavação é resetado.
-        """
-        if not self._excavating:
+    def atualizar_escavacao(self, delta_tempo):
+        if not self._escavando:
             return (False, False, None)
-        self._excav_timer += dt
-        if self._excav_timer < self._excav_duration:
+        self._temporizador_escavacao += delta_tempo
+        if self._temporizador_escavacao < self._duracao_escavacao:
             return (False, False, None)
-        # tempo atingido: tenta adicionar overlay no tile alvo
-        col, row = self._excav_target
-        added = self.add_overlay_at(col, row)
-        # reset estado
-        self._excavating = False
-        self._excav_target = (None, None)
-        self._excav_timer = 0.0
-        # Decide se o jogador encontrou um item (ex.: água) — 20% de chance quando adicionou overlay
-        found_item = None
+        coluna, linha = self._alvo_escavacao
+        adicionado = self.adicionar_sobreposicao_em(coluna, linha)
+        self._escavando = False
+        self._alvo_escavacao = (None, None)
+        self._temporizador_escavacao = 0.0
+        item_encontrado = None
         try:
-            # 70% chance de encontrar água quando a overlay foi adicionada
-            if added and random.random() < 0.70:
-                found_item = 'agua'
+            if adicionado and random.random() < 0.70:
+                item_encontrado = 'agua'
         except Exception:
-            found_item = None
-        return (True, bool(added), found_item)
+            item_encontrado = None
+        return (True, bool(adicionado), item_encontrado)
 
-    def is_excavating(self):
-        """Retorna True se houver uma escavação em andamento.
+    def esta_escavando(self):
+        return self._escavando
 
-        Uso: chamado por outras partes do jogo (ex.: `Player.draw()`) para bloquear
-        movimento ou para desenhar barra de progresso.
-        """
-        return self._excavating
-
-    def excavation_progress(self):
-        """Retorna progresso da escavação (float 0.0..1.0).
-
-        Comportamento:
-            - Se não houver escavação retorna 0.0.
-            - Se houver, divide `_excav_timer` por `_excav_duration` e limita em 1.0.
-        """
-        if not self._excavating:
+    def progresso_escavacao(self):
+        if not self._escavando:
             return 0.0
-        return min(1.0, self._excav_timer / max(1e-6, self._excav_duration))
+        return min(1.0, self._temporizador_escavacao / max(1e-6, self._duracao_escavacao))
