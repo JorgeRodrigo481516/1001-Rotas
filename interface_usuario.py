@@ -99,57 +99,10 @@ class InterfaceUsuario:
         self.icone_sede.draw()
         self.barra_sede.draw()
 
-        def desenhar_preenchimento_para(sprite_barra, valor):
-            if valor <= 0:
-                return
+        self._desenhar_barra_status(self.barra_sol, self.sol)
+        self._desenhar_barra_status(self.barra_sede, self.sede)
 
-            exemplo_preenchimento = next((p for p in self.sprites_preenchimento if p is not None), None)
-            if exemplo_preenchimento is None:
-                return
-
-            largura_bloco = int(exemplo_preenchimento.width)
-            altura_bloco = int(exemplo_preenchimento.height)
-
-            padding_esq = int(getattr(config, 'PREENCHIMENTO_HUD_PADDING_ESQUERDA', 0))
-            padding_dir = int(getattr(config, 'PREENCHIMENTO_HUD_PADDING_DIREITA', 0))
-            espaco_entre_blocos = int(getattr(config, 'ESPACAMENTO_PREENCHIMENTO_HUD', 0))
-
-            largura_barra = int(sprite_barra.width)
-            largura_util = max(0, largura_barra - padding_esq - padding_dir)
-
-            passo_por_bloco = largura_bloco + espaco_entre_blocos
-            if passo_por_bloco <= 0:
-                return
-
-            num_blocos = max(1, largura_util // passo_por_bloco)
-
-            blocos_preenchidos = int((valor / 1000.0) * num_blocos)
-            blocos_preenchidos = max(0, min(blocos_preenchidos, num_blocos))
-
-            segmentos = max(1, len(self.sprites_preenchimento))
-            blocos_por_segmento = max(1, num_blocos // segmentos)
-
-            x_inicio = sprite_barra.x + padding_esq
-            y_inicio = sprite_barra.y + (sprite_barra.height - altura_bloco) / 2
-
-            for indice in range(blocos_preenchidos):
-                indice_segmento = min(segmentos - 1, indice // blocos_por_segmento)
-                sprite_para_desenhar = self.sprites_preenchimento[indice_segmento]
-                if sprite_para_desenhar is None:
-                    continue
-
-                pos_x = x_inicio + indice * passo_por_bloco
-                sprite_para_desenhar.x = pos_x
-                sprite_para_desenhar.y = y_inicio
-                sprite_para_desenhar.draw()
-
-        desenhar_preenchimento_para(self.barra_sol, self.sol)
-        desenhar_preenchimento_para(self.barra_sede, self.sede)
-
-        try:
-            delta_tempo = self.janela.delta_time()
-        except Exception:
-            delta_tempo = 0
+        delta_tempo = self.janela.delta_time()
 
         if self._temporizador_mensagem_sede > 0:
             self._temporizador_mensagem_sede -= delta_tempo
@@ -179,18 +132,59 @@ class InterfaceUsuario:
             if overlay is not None:
                 overlay.draw()
 
+    def _desenhar_barra_status(self, sprite_barra, valor):
+        if valor <= 0:
+            return
+
+        exemplo_preenchimento = next((p for p in self.sprites_preenchimento if p is not None), None)
+        if exemplo_preenchimento is None:
+            return
+
+        largura_bloco = int(exemplo_preenchimento.width)
+        altura_bloco = int(exemplo_preenchimento.height)
+
+        padding_esq = int(getattr(config, 'PREENCHIMENTO_HUD_PADDING_ESQUERDA', 0))
+        padding_dir = int(getattr(config, 'PREENCHIMENTO_HUD_PADDING_DIREITA', 0))
+        espaco_entre_blocos = int(getattr(config, 'ESPACAMENTO_PREENCHIMENTO_HUD', 0))
+
+        largura_barra = int(sprite_barra.width)
+        largura_util = max(0, largura_barra - padding_esq - padding_dir)
+
+        passo_por_bloco = largura_bloco + espaco_entre_blocos
+        if passo_por_bloco <= 0:
+            return
+
+        num_blocos = max(1, largura_util // passo_por_bloco)
+
+        blocos_preenchidos = int((valor / 1000.0) * num_blocos)
+        blocos_preenchidos = max(0, min(blocos_preenchidos, num_blocos))
+
+        segmentos = max(1, len(self.sprites_preenchimento))
+        blocos_por_segmento = max(1, num_blocos // segmentos)
+
+        x_inicio = sprite_barra.x + padding_esq
+        y_inicio = sprite_barra.y + (sprite_barra.height - altura_bloco) / 2
+
+        for indice in range(blocos_preenchidos):
+            indice_segmento = min(segmentos - 1, indice // blocos_por_segmento)
+            sprite_para_desenhar = self.sprites_preenchimento[indice_segmento]
+            if sprite_para_desenhar is None:
+                continue
+
+            pos_x = x_inicio + indice * passo_por_bloco
+            sprite_para_desenhar.x = pos_x
+            sprite_para_desenhar.y = y_inicio
+            sprite_para_desenhar.draw()
+
     def adicionar_item(self, caminho_imagem):
         for i, ov in enumerate(self.sobreposicoes_espacos):
             if ov is None:
-                try:
-                    sprite = Sprite(caminho_imagem)
-                    espaco = self.espacos[i]
-                    sprite.x = espaco.x + (espaco.width - sprite.width) / 2
-                    sprite.y = espaco.y + (espaco.height - sprite.height) / 2
-                    self.sobreposicoes_espacos[i] = sprite
-                    return True
-                except Exception:
-                    return False
+                sprite = Sprite(caminho_imagem)
+                espaco = self.espacos[i]
+                sprite.x = espaco.x + (espaco.width - sprite.width) / 2
+                sprite.y = espaco.y + (espaco.height - sprite.height) / 2
+                self.sobreposicoes_espacos[i] = sprite
+                return True
         return False
 
     def usar_item(self, index):
@@ -198,11 +192,8 @@ class InterfaceUsuario:
             return False
         if self.sobreposicoes_espacos[index] is None:
             return False
-        try:
-            self.sobreposicoes_espacos[index] = None
-            return True
-        except Exception:
-            return False
+        self.sobreposicoes_espacos[index] = None
+        return True
 
     def exibir_mensagem(self, tipo, texto, duration=1.5):
         if tipo == 'sede':

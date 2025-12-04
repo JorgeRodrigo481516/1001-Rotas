@@ -50,7 +50,7 @@ class Jogador:
         self._indice_espaco_bebida = None
 
     def atualizar(self, teclado, delta_tempo):
-        if (hasattr(self.mapa, 'esta_escavando') and callable(self.mapa.esta_escavando) and self.mapa.esta_escavando()) or self._bebendo:
+        if self.mapa.esta_escavando() or self._bebendo:
             esta_movendo = False
             self.quadro_alternativo = False
             self.tempo_animacao = 0.0
@@ -58,14 +58,11 @@ class Jogador:
                 self._temporizador_bebida += delta_tempo
                 if self._temporizador_bebida >= self._duracao_bebida:
                     indice_espaco = self._indice_espaco_bebida
-                    try:
-                        if self.hud is not None:
-                            removido = self.hud.usar_item(indice_espaco)
-                            if removido:
-                                self.hud.definir_valores(sede=self.hud.sede - 200)
-                                self.hud.exibir_mensagem('sede', '-200', duration=1.5)
-                    except Exception:
-                        pass
+                    if self.hud is not None:
+                        removido = self.hud.usar_item(indice_espaco)
+                        if removido:
+                            self.hud.definir_valores(sede=self.hud.sede - 200)
+                            self.hud.exibir_mensagem('sede', '-200', duration=1.5)
                     self._bebendo = False
                     self._temporizador_bebida = 0.0
                     self._indice_espaco_bebida = None
@@ -101,7 +98,7 @@ class Jogador:
 
         largura_sprite, altura_sprite = self.andar_direita_1.width, self.andar_direita_1.height
         min_x, max_x = 0, self.janela.width - largura_sprite
-        if not getattr(self.mapa, 'altura_tile', None):
+        if not self.mapa.altura_tile:
             raise RuntimeError('Mapa precisa definir altura_tile antes de usar Jogador')
         min_y = config.ALTURA_HUD_EM_TILES * self.mapa.altura_tile
         max_y = self.janela.height - altura_sprite
@@ -115,72 +112,39 @@ class Jogador:
             sprite_atual = self.andar_esquerda_2 if self.quadro_alternativo else self.andar_esquerda_1
         sprite_atual.x, sprite_atual.y = self.x, self.y
         sprite_atual.draw()
-        try:
-            escavando = hasattr(self.mapa, 'esta_escavando') and callable(self.mapa.esta_escavando) and self.mapa.esta_escavando()
-        except Exception:
-            escavando = False
-        if escavando:
-            texto = "Escavando.."
-            texto_x = int(self.x + (sprite_atual.width / 2) - (len(texto) * 3))
-            texto_y = int(self.y - 18)
-            try:
-                self.janela.draw_text(texto, texto_x, texto_y, size=14, color=(0,0,0))
-            except Exception:
-                pass
-            try:
-                if hasattr(self.mapa, 'progresso_escavacao') and callable(self.mapa.progresso_escavacao):
-                    progresso = self.mapa.progresso_escavacao()
-                else:
-                    progresso = 0.0
-                largura_barra = int(sprite_atual.width * 0.7)
-                altura_barra = 6
-                texto = "Escavando.."
-                texto_x = int(self.x + (sprite_atual.width / 2) - (len(texto) * 3))
-                texto_y = int(self.y - 18)
-                barra_x = int(self.x + (sprite_atual.width - largura_barra) / 2)
-                barra_y = int(texto_y - altura_barra - 4)
-                cor_borda = (120, 90, 60)
-                cor_fundo = (237, 201, 175)
-                cor_preenchimento = (194, 117, 30)
 
-                tela = self.janela.get_screen()
-                tela.fill(cor_borda, (barra_x-1, barra_y-1, largura_barra+2, altura_barra+2))
-                tela.fill(cor_fundo, (barra_x, barra_y, largura_barra, altura_barra))
-                largura_preenchimento = max(0, min(largura_barra, int(largura_barra * float(progresso))))
-                if largura_preenchimento > 0:
-                    tela.fill(cor_preenchimento, (barra_x, barra_y, largura_preenchimento, altura_barra))
-            except Exception:
-                pass
+        if self.mapa.esta_escavando():
+            self._desenhar_barra_progresso(sprite_atual, "Escavando..", self.mapa.progresso_escavacao(), (194, 117, 30))
 
-        try:
-            if self._bebendo:
-                texto = "Bebendo.."
-                texto_x = int(self.x + (sprite_atual.width / 2) - (len(texto) * 3))
-                texto_y = int(self.y - 18)
-                try:
-                    self.janela.draw_text(texto, texto_x, texto_y, size=14, color=(255,255,255))
-                except Exception:
-                    pass
+        if self._bebendo:
+            progresso = min(1.0, self._temporizador_bebida / max(1e-6, self._duracao_bebida))
+            self._desenhar_barra_progresso(sprite_atual, "Bebendo..", progresso, (80, 160, 240))
 
-                try:
-                    progresso = min(1.0, self._temporizador_bebida / max(1e-6, self._duracao_bebida))
-                    largura_barra = int(sprite_atual.width * 0.7)
-                    altura_barra = 6
-                    barra_x = int(self.x + (sprite_atual.width - largura_barra) / 2)
-                    barra_y = int(texto_y - altura_barra - 4)
-                    cor_borda = (30, 60, 120)
-                    cor_fundo = (40, 80, 140)
-                    cor_preenchimento = (80, 160, 240)
-                    tela = self.janela.get_screen()
-                    tela.fill(cor_borda, (barra_x-1, barra_y-1, largura_barra+2, altura_barra+2))
-                    tela.fill(cor_fundo, (barra_x, barra_y, largura_barra, altura_barra))
-                    largura_preenchimento = max(0, min(largura_barra, int(largura_barra * float(progresso))))
-                    if largura_preenchimento > 0:
-                        tela.fill(cor_preenchimento, (barra_x, barra_y, largura_preenchimento, altura_barra))
-                except Exception:
-                    pass
-        except Exception:
-            pass
+    def _desenhar_barra_progresso(self, sprite_referencia, texto, progresso, cor_preenchimento):
+        # Desenha o texto
+        texto_x = int(self.x + (sprite_referencia.width / 2) - (len(texto) * 3))
+        texto_y = int(self.y - 18)
+        # Cor do texto muda dependendo da ação? O original usava preto para escavar e branco para beber.
+        # Para simplificar, usaremos branco para ambos ou preto. Vamos manter a lógica original simplificada.
+        cor_texto = (255, 255, 255) if "Bebendo" in texto else (0, 0, 0)
+        self.janela.draw_text(texto, texto_x, texto_y, size=14, color=cor_texto)
+
+        # Desenha a barra
+        largura_barra = int(sprite_referencia.width * 0.7)
+        altura_barra = 6
+        barra_x = int(self.x + (sprite_referencia.width - largura_barra) / 2)
+        barra_y = int(texto_y - altura_barra - 4)
+        
+        cor_borda = (120, 90, 60) if "Escavando" in texto else (30, 60, 120)
+        cor_fundo = (237, 201, 175) if "Escavando" in texto else (40, 80, 140)
+
+        tela = self.janela.get_screen()
+        tela.fill(cor_borda, (barra_x-1, barra_y-1, largura_barra+2, altura_barra+2))
+        tela.fill(cor_fundo, (barra_x, barra_y, largura_barra, altura_barra))
+        
+        largura_preenchimento = max(0, min(largura_barra, int(largura_barra * float(progresso))))
+        if largura_preenchimento > 0:
+            tela.fill(cor_preenchimento, (barra_x, barra_y, largura_preenchimento, altura_barra))
 
     def beber(self, indice_espaco, duration=3.0):
         if self._bebendo:

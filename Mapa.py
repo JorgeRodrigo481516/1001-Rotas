@@ -146,11 +146,8 @@ class Mapa:
         self._alvo_escavacao = (None, None)
         self._temporizador_escavacao = 0.0
         item_encontrado = None
-        try:
-            if adicionado and random.random() < 0.70:
-                item_encontrado = 'agua'
-        except Exception:
-            item_encontrado = None
+        if adicionado and random.random() < 0.70:
+            item_encontrado = 'agua'
         return (True, bool(adicionado), item_encontrado)
 
     def esta_escavando(self):

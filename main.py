@@ -36,7 +36,7 @@ hud = InterfaceUsuario(janela)
 
 tempo_acumulado_hud = 0.0
 
-if hasattr(hud, 'espacos') and len(hud.espacos) > 0:
+if len(hud.espacos) > 0:
     altura_espaco_hud = hud.espacos[0].height
 else:
     altura_espaco_hud = 0
@@ -58,8 +58,8 @@ while True:
         tempo_acumulado_hud += delta_segundos
         segundos_completos = int(tempo_acumulado_hud)
         if segundos_completos >= 1:
-            for _ in range(segundos_completos):
-                hud.definir_valores(sede=hud.sede + 4, sol=hud.sol + 2)
+            # Simplificação: Multiplica o valor pelo tempo em vez de fazer um loop
+            hud.definir_valores(sede=hud.sede + (4 * segundos_completos), sol=hud.sol + (2 * segundos_completos))
             tempo_acumulado_hud -= segundos_completos
 
         if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel:
@@ -67,35 +67,25 @@ while True:
 
         if teclado.key_pressed("SPACE"):
             coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
-            iniciou_escavacao = mapa.iniciar_escavacao(coluna, linha)
-            if iniciou_escavacao:
-                pass
+            mapa.iniciar_escavacao(coluna, linha)
 
         terminou, overlay_adicionada, item_encontrado = mapa.atualizar_escavacao(delta_segundos)
         if terminou and overlay_adicionada:
             hud.definir_valores(sede=hud.sede + 100)
             hud.exibir_mensagem('sede', '+100', duration=1.5)
-            try:
-                if item_encontrado == 'agua':
-                    hud.adicionar_item(config.RECURSOS.get('agua'))
-            except Exception:
-                pass
+            if item_encontrado == 'agua':
+                hud.adicionar_item(config.RECURSOS.get('agua'))
+
             if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel:
                 popup.exibir_morte()
 
-        try:
-            if not jogador.esta_bebendo() and not (hasattr(mapa, 'esta_escavando') and mapa.esta_escavando()):
-                for numero_tecla in range(1, min(8, len(hud.espacos)) + 1):
-                    if teclado.key_pressed(str(numero_tecla)):
-                        indice_espaco = numero_tecla - 1
-                        try:
-                            if getattr(hud, 'sobreposicoes_espacos', [None])[indice_espaco] is not None:
-                                jogador.beber(indice_espaco, duration=3.0)
-                        except Exception:
-                            pass
-                        break
-        except Exception:
-            pass
+        if not jogador.esta_bebendo() and not mapa.esta_escavando():
+            for numero_tecla in range(1, min(8, len(hud.espacos)) + 1):
+                if teclado.key_pressed(str(numero_tecla)):
+                    indice_espaco = numero_tecla - 1
+                    if hud.sobreposicoes_espacos[indice_espaco] is not None:
+                        jogador.beber(indice_espaco, duration=3.0)
+                    break
 
     for azulejo in mapa.azulejos:
         azulejo.desenhar()

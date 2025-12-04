@@ -13,7 +13,7 @@ REGRAS DE USO:
     - Quando visível, o loop principal geralmente pausa atualizações de jogo.
 
 NOTAS DE IMPLEMENTAÇÃO:
-    - Tenta usar Pygame diretamente para transparência (alpha), com fallback.
+    - Usa PPlay para renderização de texto e primitivas.
 -------------------------------------------------------------------
 """
 from PPlay.window import Window
@@ -35,24 +35,7 @@ class PopupFimDeJogo:
         if not self.esta_visivel:
             return
 
-        superficie_tela = None
-        try:
-            superficie_tela = self.janela.get_screen()
-        except Exception:
-            return
-
         largura, altura = int(self.janela.width), int(self.janela.height)
-
-        try:
-            import pygame
-            superficie_sobreposicao = pygame.Surface((largura, altura), pygame.SRCALPHA)
-            superficie_sobreposicao.fill((0, 0, 0, 160))
-            superficie_tela.blit(superficie_sobreposicao, (0, 0))
-        except Exception:
-            try:
-                superficie_tela.fill((0, 0, 0), (0, 0, largura, altura))
-            except Exception:
-                pass
 
         padding_largura = int(largura * 0.1)
         padding_altura = int(altura * 0.1)
@@ -64,30 +47,16 @@ class PopupFimDeJogo:
         cor_fundo_painel = (0, 0, 0)
         cor_borda = (255, 255, 255)
 
-        try:
-            superficie_tela.fill(cor_borda, (painel_x - 4, painel_y - 4, largura_painel + 8, altura_painel + 8))
-            superficie_tela.fill(cor_fundo_painel, (painel_x, painel_y, largura_painel, altura_painel))
-        except Exception:
-            try:
-                superficie_tela.fill(cor_fundo_painel, (painel_x, painel_y, largura_painel, altura_painel))
-            except Exception:
-                pass
+        tela = self.janela.get_screen()
+        tela.fill(cor_borda, (painel_x - 4, painel_y - 4, largura_painel + 8, altura_painel + 8))
+        tela.fill(cor_fundo_painel, (painel_x, painel_y, largura_painel, altura_painel))
 
-        try:
-            texto_mensagem = str(self._texto_mensagem)
-            try:
-                import pygame
-                if not pygame.font.get_init():
-                    pygame.font.init()
-                fonte_pygame = pygame.font.SysFont(None, 48, bold=True)
-                superficie_texto = fonte_pygame.render(texto_mensagem, True, (200, 0, 0))
-                retangulo_texto = superficie_texto.get_rect(center=(painel_x + largura_painel / 2, painel_y + altura_painel / 2))
-                superficie_tela.blit(superficie_texto, retangulo_texto)
-            except Exception:
-                largura_estimada = max(1, len(texto_mensagem) * 7)
-                altura_estimada = 24
-                mensagem_x = int(painel_x + (largura_painel - largura_estimada) / 2)
-                mensagem_y = int(painel_y + (altura_painel - altura_estimada) / 2)
-                self.janela.draw_text(texto_mensagem, mensagem_x, mensagem_y, size=32, color=(200, 0, 0))
-        except Exception:
-            pass
+        texto_mensagem = str(self._texto_mensagem)
+        tamanho_fonte = 28
+        largura_estimada = len(texto_mensagem) * (tamanho_fonte * 0.4) 
+        altura_estimada = tamanho_fonte
+        
+        mensagem_x = int(painel_x + (largura_painel - largura_estimada) / 2)
+        mensagem_y = int(painel_y + (altura_painel - altura_estimada) / 8)
+        
+        self.janela.draw_text(texto_mensagem, mensagem_x, mensagem_y, size=tamanho_fonte, color=(200, 0, 0), bold=True)
