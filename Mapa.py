@@ -108,7 +108,6 @@ class Mapa:
                 self.azulejos.append(novo_azulejo)
                 self.azulejos_por_coordenada[(coluna, linha)] = novo_azulejo
 
-        # Distribuir itens aleatoriamente
         total_azulejos = len(self.azulejos)
         qtd_agua = int(total_azulejos * 0.35)
         qtd_pa = int(total_azulejos * 0.05)
@@ -150,12 +149,12 @@ class Mapa:
 
     def atualizar_escavacao(self, delta_tempo, bonus_dado=0, tem_pa=False):
         if not self._escavando:
-            return (False, False, None)
+            return (False, False, None, 0)
         self._temporizador_escavacao += delta_tempo
         
         duracao = getattr(self, '_duracao_atual', self._duracao_escavacao)
         if self._temporizador_escavacao < duracao:
-            return (False, False, None)
+            return (False, False, None, 0)
         
         coluna, linha = self._alvo_escavacao
         azulejo = self.obter_azulejo_grade(coluna, linha)
@@ -164,9 +163,8 @@ class Mapa:
              self._escavando = False
              self._alvo_escavacao = (None, None)
              self._temporizador_escavacao = 0.0
-             return (True, False, 'pa_duplicada')
+             return (True, False, 'pa_duplicada', 0)
         
-        # Mecânica de teste de dado (0 a 20)
         dado = random.randint(0, 20)
         sucesso_escavacao = (dado + bonus_dado) > 12
         
@@ -182,7 +180,7 @@ class Mapa:
         if adicionado and azulejo:
             item_encontrado = azulejo.item
             
-        return (True, bool(adicionado), item_encontrado)
+        return (True, bool(adicionado), item_encontrado, dado)
 
     def esta_escavando(self):
         return self._escavando

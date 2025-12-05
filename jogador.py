@@ -135,15 +135,11 @@ class Jogador:
             self._desenhar_barra_progresso(sprite_atual, "Bebendo..", progresso, (80, 160, 240))
 
     def _desenhar_barra_progresso(self, sprite_referencia, texto, progresso, cor_preenchimento):
-        # Desenha o texto
         texto_x = int(self.x + (sprite_referencia.width / 2) - (len(texto) * 3))
         texto_y = int(self.y - 18)
-        # Cor do texto muda dependendo da ação? O original usava preto para escavar e branco para beber.
-        # Para simplificar, usaremos branco para ambos ou preto. Vamos manter a lógica original simplificada.
         cor_texto = (255, 255, 255) if "Bebendo" in texto else (0, 0, 0)
         self.janela.draw_text(texto, texto_x, texto_y, size=14, color=cor_texto)
 
-        # Desenha a barra
         largura_barra = int(sprite_referencia.width * 0.7)
         altura_barra = 6
         barra_x = int(self.x + (sprite_referencia.width - largura_barra) / 2)

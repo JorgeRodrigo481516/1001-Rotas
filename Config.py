@@ -16,6 +16,7 @@ NOTAS DE IMPLEMENTAÇÃO:
     - Dicionário RECURSOS centraliza paths de assets.
 -------------------------------------------------------------------
 """
+
 LARGURA_JANELA = 800
 ALTURA_JANELA = 600
 

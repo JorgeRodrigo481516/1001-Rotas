@@ -201,6 +201,15 @@ class InterfaceUsuario:
     def tem_item(self, nome_item):
         return nome_item in self.nomes_itens
 
+    def remover_item(self, nome_item):
+        try:
+            index = self.nomes_itens.index(nome_item)
+            self.sobreposicoes_espacos[index] = None
+            self.nomes_itens[index] = None
+            return True
+        except ValueError:
+            return False
+
     def exibir_mensagem(self, tipo, texto, duration=1.5):
         if tipo == 'sede':
             self._mensagem_sede = str(texto)

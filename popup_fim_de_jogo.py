@@ -17,46 +17,49 @@ NOTAS DE IMPLEMENTAÇÃO:
 -------------------------------------------------------------------
 """
 from PPlay.window import Window
+from PPlay.gameimage import GameImage
+import time
 
 class PopupFimDeJogo:
     def __init__(self, janela: Window):
         self.janela = janela
         self.esta_visivel = False
-        self._texto_mensagem = ""
+        self.tempo_inicio_morte = 0
+        
+        self.bg_morte = GameImage("assets/tela morte.png")
+        self.btn_restart = GameImage("assets/botao restart.png")
+        
+        self._atualizar_posicao()
+
+    def _atualizar_posicao(self):
+        self.bg_morte.x = (self.janela.width - self.bg_morte.width) / 2
+        self.bg_morte.y = (self.janela.height - self.bg_morte.height) / 2
+        
+        self.btn_restart.x = (self.janela.width - self.btn_restart.width) / 2
+        self.btn_restart.y = self.bg_morte.y + self.bg_morte.height - 70
 
     def exibir_morte(self):
-        self._texto_mensagem = "V o c ê  M o r r e u !  F i m   d e   J o g o"
         self.esta_visivel = True
+        self.tempo_inicio_morte = time.time()
 
     def ocultar(self):
         self.esta_visivel = False
+
+    def verificar_clique(self, mouse):
+        if not self.esta_visivel:
+            return False
+
+        if time.time() - self.tempo_inicio_morte < 3:
+            return False
+            
+        if mouse.is_button_pressed(1):
+            if mouse.is_over_object(self.btn_restart):
+                return True
+        return False
 
     def desenhar(self):
         if not self.esta_visivel:
             return
 
-        largura, altura = int(self.janela.width), int(self.janela.height)
-
-        padding_largura = int(largura * 0.1)
-        padding_altura = int(altura * 0.1)
-        painel_x = padding_largura
-        painel_y = padding_altura
-        largura_painel = largura - padding_largura * 2
-        altura_painel = altura - padding_altura * 2
-
-        cor_fundo_painel = (0, 0, 0)
-        cor_borda = (255, 255, 255)
-
-        tela = self.janela.get_screen()
-        tela.fill(cor_borda, (painel_x - 4, painel_y - 4, largura_painel + 8, altura_painel + 8))
-        tela.fill(cor_fundo_painel, (painel_x, painel_y, largura_painel, altura_painel))
-
-        texto_mensagem = str(self._texto_mensagem)
-        tamanho_fonte = 28
-        largura_estimada = len(texto_mensagem) * (tamanho_fonte * 0.4) 
-        altura_estimada = tamanho_fonte
-        
-        mensagem_x = int(painel_x + (largura_painel - largura_estimada) / 2)
-        mensagem_y = int(painel_y + (altura_painel - altura_estimada) / 8)
-        
-        self.janela.draw_text(texto_mensagem, mensagem_x, mensagem_y, size=tamanho_fonte, color=(200, 0, 0), bold=True)
+        self.bg_morte.draw()
+        self.btn_restart.draw()
