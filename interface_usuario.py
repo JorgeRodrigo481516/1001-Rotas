@@ -85,6 +85,7 @@ class InterfaceUsuario:
             s.x = x_espacos + i * largura_espaco
             s.y = y_espacos
         self.sobreposicoes_espacos = [None for _ in range(contagem_espacos)]
+        self.nomes_itens = [None for _ in range(contagem_espacos)]
 
     def definir_valores(self, sede=None, sol=None):
         if sede is not None:
@@ -176,7 +177,7 @@ class InterfaceUsuario:
             sprite_para_desenhar.y = y_inicio
             sprite_para_desenhar.draw()
 
-    def adicionar_item(self, caminho_imagem):
+    def adicionar_item(self, caminho_imagem, nome_item=None):
         for i, ov in enumerate(self.sobreposicoes_espacos):
             if ov is None:
                 sprite = Sprite(caminho_imagem)
@@ -184,6 +185,7 @@ class InterfaceUsuario:
                 sprite.x = espaco.x + (espaco.width - sprite.width) / 2
                 sprite.y = espaco.y + (espaco.height - sprite.height) / 2
                 self.sobreposicoes_espacos[i] = sprite
+                self.nomes_itens[i] = nome_item
                 return True
         return False
 
@@ -193,7 +195,11 @@ class InterfaceUsuario:
         if self.sobreposicoes_espacos[index] is None:
             return False
         self.sobreposicoes_espacos[index] = None
+        self.nomes_itens[index] = None
         return True
+
+    def tem_item(self, nome_item):
+        return nome_item in self.nomes_itens
 
     def exibir_mensagem(self, tipo, texto, duration=1.5):
         if tipo == 'sede':

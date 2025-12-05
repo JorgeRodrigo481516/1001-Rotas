@@ -49,7 +49,16 @@ class Jogador:
         self._duracao_bebida = 3.0
         self._indice_espaco_bebida = None
 
+        self._mensagem_cabeca = ""
+        self._temporizador_mensagem_cabeca = 0.0
+
     def atualizar(self, teclado, delta_tempo):
+        if self._temporizador_mensagem_cabeca > 0:
+            self._temporizador_mensagem_cabeca -= delta_tempo
+            if self._temporizador_mensagem_cabeca <= 0:
+                self._mensagem_cabeca = ""
+                self._temporizador_mensagem_cabeca = 0.0
+
         if self.mapa.esta_escavando() or self._bebendo:
             esta_movendo = False
             self.quadro_alternativo = False
@@ -113,6 +122,11 @@ class Jogador:
         sprite_atual.x, sprite_atual.y = self.x, self.y
         sprite_atual.draw()
 
+        if self._mensagem_cabeca:
+            texto_x = int(self.x + (sprite_atual.width / 2) - (len(self._mensagem_cabeca) * 3))
+            texto_y = int(self.y - 25)
+            self.janela.draw_text(self._mensagem_cabeca, texto_x, texto_y, size=14, color=(255, 0, 0))
+
         if self.mapa.esta_escavando():
             self._desenhar_barra_progresso(sprite_atual, "Escavando..", self.mapa.progresso_escavacao(), (194, 117, 30))
 
@@ -154,6 +168,13 @@ class Jogador:
         self._duracao_bebida = float(duration)
         self._indice_espaco_bebida = int(indice_espaco)
         return True
+
+    def exibir_mensagem_cabeca(self, texto, duration=2.0):
+        self._mensagem_cabeca = texto
+        self._temporizador_mensagem_cabeca = float(duration)
+
+    def tem_mensagem_cabeca(self):
+        return self._temporizador_mensagem_cabeca > 0
 
     def esta_bebendo(self):
         return bool(self._bebendo)

@@ -29,6 +29,7 @@ class Azulejo:
         self.coluna = coluna
         self.linha = linha
         self.sprite_sobreposicao = None
+        self.item = None
 
     def desenhar(self):
         self.sprite.draw()
@@ -107,6 +108,18 @@ class Mapa:
                 self.azulejos.append(novo_azulejo)
                 self.azulejos_por_coordenada[(coluna, linha)] = novo_azulejo
 
+        # Distribuir itens aleatoriamente
+        total_azulejos = len(self.azulejos)
+        qtd_agua = int(total_azulejos * 0.35)
+        qtd_pa = int(total_azulejos * 0.05)
+        
+        itens = ['agua'] * qtd_agua + ['pa'] * qtd_pa + [None] * (total_azulejos - qtd_agua - qtd_pa)
+        random.shuffle(itens)
+        random.shuffle(itens)
+        
+        for i, azulejo in enumerate(self.azulejos):
+            azulejo.item = itens[i]
+
     def obter_azulejo_grade(self, coluna, linha):
         return self.azulejos_por_coordenada.get((coluna, linha))
 
@@ -121,7 +134,7 @@ class Mapa:
             return azulejo.adicionar_sobreposicao(caminho_imagem)
         return False
 
-    def iniciar_escavacao(self, coluna, linha):
+    def iniciar_escavacao(self, coluna, linha, tem_pa=False):
         if self._escavando:
             return False
         azulejo = self.obter_azulejo_grade(coluna, linha)
@@ -132,22 +145,43 @@ class Mapa:
         self._escavando = True
         self._alvo_escavacao = (coluna, linha)
         self._temporizador_escavacao = 0.0
+        self._duracao_atual = self._duracao_escavacao / 2.0 if tem_pa else self._duracao_escavacao
         return True
 
-    def atualizar_escavacao(self, delta_tempo):
+    def atualizar_escavacao(self, delta_tempo, bonus_dado=0, tem_pa=False):
         if not self._escavando:
             return (False, False, None)
         self._temporizador_escavacao += delta_tempo
-        if self._temporizador_escavacao < self._duracao_escavacao:
+        
+        duracao = getattr(self, '_duracao_atual', self._duracao_escavacao)
+        if self._temporizador_escavacao < duracao:
             return (False, False, None)
+        
         coluna, linha = self._alvo_escavacao
-        adicionado = self.adicionar_sobreposicao_em(coluna, linha)
+        azulejo = self.obter_azulejo_grade(coluna, linha)
+
+        if azulejo and azulejo.item == 'pa' and tem_pa:
+             self._escavando = False
+             self._alvo_escavacao = (None, None)
+             self._temporizador_escavacao = 0.0
+             return (True, False, 'pa_duplicada')
+        
+        # Mecânica de teste de dado (0 a 20)
+        dado = random.randint(0, 20)
+        sucesso_escavacao = (dado + bonus_dado) > 12
+        
+        adicionado = False
+        if sucesso_escavacao:
+            adicionado = self.adicionar_sobreposicao_em(coluna, linha)
+            
         self._escavando = False
         self._alvo_escavacao = (None, None)
         self._temporizador_escavacao = 0.0
         item_encontrado = None
-        if adicionado and random.random() < 0.70:
-            item_encontrado = 'agua'
+        
+        if adicionado and azulejo:
+            item_encontrado = azulejo.item
+            
         return (True, bool(adicionado), item_encontrado)
 
     def esta_escavando(self):
@@ -156,4 +190,5 @@ class Mapa:
     def progresso_escavacao(self):
         if not self._escavando:
             return 0.0
-        return min(1.0, self._temporizador_escavacao / max(1e-6, self._duracao_escavacao))
+        duracao = getattr(self, '_duracao_atual', self._duracao_escavacao)
+        return min(1.0, self._temporizador_escavacao / max(1e-6, duracao))

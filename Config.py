@@ -43,8 +43,9 @@ RECURSOS = {
     'hud_barra': "assets/spritesheet HUD barra.png",
     'hud_sede': "assets/spritesheet HUD sede.png",
     'slot': "assets/spritesheet HUD slot (1).png",
-    'overlay_default': "assets/Escavação da superficie do deserto.png",
+    'overlay_default': "assets/escavação da superficie do deserto.png",
     'agua': "assets/agua.png",
+    'pa': "assets/pa.png",
 }
 
 PREENCHIMENTOS_BARRA_HUD = [

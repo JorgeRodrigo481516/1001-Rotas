@@ -58,23 +58,34 @@ while True:
         tempo_acumulado_hud += delta_segundos
         segundos_completos = int(tempo_acumulado_hud)
         if segundos_completos >= 1:
-            # Simplificação: Multiplica o valor pelo tempo em vez de fazer um loop
             hud.definir_valores(sede=hud.sede + (4 * segundos_completos), sol=hud.sol + (2 * segundos_completos))
             tempo_acumulado_hud -= segundos_completos
 
         if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel:
             popup.exibir_morte()
 
-        if teclado.key_pressed("SPACE"):
-            coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
-            mapa.iniciar_escavacao(coluna, linha)
+        tem_pa = hud.tem_item('pa')
+        bonus_escavacao = 3 if tem_pa else 0
 
-        terminou, overlay_adicionada, item_encontrado = mapa.atualizar_escavacao(delta_segundos)
-        if terminou and overlay_adicionada:
-            hud.definir_valores(sede=hud.sede + 100)
-            hud.exibir_mensagem('sede', '+100', duration=1.5)
-            if item_encontrado == 'agua':
-                hud.adicionar_item(config.RECURSOS.get('agua'))
+        if teclado.key_pressed("SPACE") and not jogador.tem_mensagem_cabeca():
+            coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
+            mapa.iniciar_escavacao(coluna, linha, tem_pa=tem_pa)
+        
+        terminou, overlay_adicionada, item_encontrado = mapa.atualizar_escavacao(delta_segundos, bonus_dado=bonus_escavacao, tem_pa=tem_pa)
+        if terminou:
+            if item_encontrado == 'pa_duplicada':
+                 jogador.exibir_mensagem_cabeca("Só posso carregar uma pá...", duration=3.0)
+            else:
+                hud.definir_valores(sede=hud.sede + 100)
+                hud.exibir_mensagem('sede', '+100', duration=1.5)
+                
+                if overlay_adicionada:
+                    if item_encontrado == 'agua':
+                        hud.adicionar_item(config.RECURSOS.get('agua'), 'agua')
+                    elif item_encontrado == 'pa':
+                        hud.adicionar_item(config.RECURSOS.get('pa'), 'pa')
+                else:
+                    jogador.exibir_mensagem_cabeca("Não consegui...", duration=2.0)
 
             if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel:
                 popup.exibir_morte()
