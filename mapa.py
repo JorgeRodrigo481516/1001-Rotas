@@ -62,6 +62,11 @@ class Mapa:
         self._alvo_escavacao = (None, None)
         self._temporizador_escavacao = 0.0
         self._duracao_escavacao = 2.0
+        
+        self._investigando = False
+        self._fila_mensagens = []
+        self._tempo_investigacao = 0.0
+        self._duracao_total_investigacao = 0.0
 
     def construir(self):
         caminho_base = config.RECURSOS.get('tile_base_pattern')
@@ -197,3 +202,97 @@ class Mapa:
             return 0.0
         duracao = getattr(self, '_duracao_atual', self._duracao_escavacao)
         return min(1.0, self._temporizador_escavacao / max(1e-6, duracao))
+
+    def iniciar_investigacao(self, coluna_centro, linha_centro):
+        if self._escavando or self._investigando:
+            return False
+        
+        self._investigando = True
+        self._tempo_investigacao = 0.0
+        self._fila_mensagens = []
+        
+        grid_info = [
+            (-1, -1, "Superior Esquerda", config.DIFICULDADE_INVESTIGACAO_DIAGONAL),
+            (0, -1, "Superior Centro", config.DIFICULDADE_INVESTIGACAO_ORTOGONAL),
+            (1, -1, "Superior Direita", config.DIFICULDADE_INVESTIGACAO_DIAGONAL),
+            (-1, 0, "Meio Esquerda", config.DIFICULDADE_INVESTIGACAO_ORTOGONAL),
+            (0, 0, "Centro", config.DIFICULDADE_INVESTIGACAO_CENTRO),
+            (1, 0, "Meio Direita", config.DIFICULDADE_INVESTIGACAO_ORTOGONAL),
+            (-1, 1, "Inferior Esquerda", config.DIFICULDADE_INVESTIGACAO_DIAGONAL),
+            (0, 1, "Inferior Centro", config.DIFICULDADE_INVESTIGACAO_ORTOGONAL),
+            (1, 1, "Inferior Direita", config.DIFICULDADE_INVESTIGACAO_DIAGONAL),
+        ]
+
+        tempo_acumulado = config.DELAY_INICIAL_INVESTIGACAO
+        
+        possiveis_itens = ['agua', 'pa', 'faca', None]
+
+        for dx, dy, nome_pos, dificuldade in grid_info:
+            col = coluna_centro + dx
+            lin = linha_centro + dy
+            
+            azulejo = self.obter_azulejo_grade(col, lin)
+            item_real = azulejo.item if azulejo else None
+            
+            dado = random.randint(1, 20)
+            sucesso = dado > dificuldade
+            
+            item_mostrado = item_real
+            if not sucesso:
+                opcoes_erradas = [i for i in possiveis_itens if i != item_real]
+                if not opcoes_erradas:
+                    opcoes_erradas = [None]
+                item_mostrado = random.choice(opcoes_erradas)
+            
+            nome_item = item_mostrado if item_mostrado else "Nada"
+            nome_item = nome_item.capitalize()
+            
+            chance = int(((21 - dificuldade) / 20) * 100)
+            
+            mensagem = f"{nome_pos}: {nome_item} {chance}%"
+            
+            inicio = tempo_acumulado
+            fim = tempo_acumulado + config.TEMPO_MENSAGEM_INVESTIGACAO
+            self._fila_mensagens.append((inicio, fim, mensagem))
+            
+            tempo_acumulado = fim + config.DELAY_ENTRE_MENSAGENS
+
+        tempo_acumulado -= config.DELAY_ENTRE_MENSAGENS
+        tempo_acumulado += config.DELAY_FINAL_INVESTIGACAO
+        
+        self._duracao_total_investigacao = tempo_acumulado
+        return True
+
+    def atualizar_investigacao(self, delta_tempo):
+        if not self._investigando:
+            return False, ""
+
+        self._tempo_investigacao += delta_tempo
+        
+        if self._tempo_investigacao >= self._duracao_total_investigacao:
+            self._investigando = False
+            return False, ""
+            
+        mensagem_atual = ""
+        for inicio, fim, msg in self._fila_mensagens:
+            if inicio <= self._tempo_investigacao < fim:
+                mensagem_atual = msg
+                break
+        
+        return True, mensagem_atual
+
+    def esta_investigando(self):
+        return self._investigando
+
+    def obter_mensagem_investigacao_atual(self):
+        if not self._investigando:
+            return ""
+        for inicio, fim, msg in self._fila_mensagens:
+            if inicio <= self._tempo_investigacao < fim:
+                return msg
+        return ""
+
+    def progresso_investigacao(self):
+        if not self._investigando:
+            return 0.0
+        return min(1.0, self._tempo_investigacao / max(1e-6, self._duracao_total_investigacao))

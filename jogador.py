@@ -59,7 +59,7 @@ class Jogador:
                 self._mensagem_cabeca = ""
                 self._temporizador_mensagem_cabeca = 0.0
 
-        if self.mapa.esta_escavando() or self._bebendo:
+        if self.mapa.esta_escavando() or self.mapa.esta_investigando() or self._bebendo:
             esta_movendo = False
             self.quadro_alternativo = False
             self.tempo_animacao = 0.0
@@ -130,23 +130,46 @@ class Jogador:
         if self.mapa.esta_escavando():
             self._desenhar_barra_progresso(sprite_atual, "Escavando..", self.mapa.progresso_escavacao(), (194, 117, 30))
 
+        if self.mapa.esta_investigando():
+            self._desenhar_barra_progresso(sprite_atual, "Investigando...", self.mapa.progresso_investigacao(), (138, 43, 226))
+            msg = self.mapa.obter_mensagem_investigacao_atual()
+            if msg:
+                texto_x = int(self.x + (sprite_atual.width / 2) - (len(msg) * 3))
+                texto_y = int(self.y - 55)
+                self.janela.draw_text(msg, texto_x, texto_y, size=14, color=(50, 0, 100))
+
         if self._bebendo:
             progresso = min(1.0, self._temporizador_bebida / max(1e-6, self._duracao_bebida))
-            self._desenhar_barra_progresso(sprite_atual, "Bebendo..", progresso, (80, 160, 240))
+            self._desenhar_barra_progresso(sprite_atual, "Bebendo..", progresso, (65, 105, 225))
 
     def _desenhar_barra_progresso(self, sprite_referencia, texto, progresso, cor_preenchimento):
+        if "Escavando" in texto:
+            cor_borda = (101, 67, 33)
+            cor_fundo = (245, 222, 179)
+            cor_texto = (0, 0, 0)
+        elif "Bebendo" in texto:
+            cor_borda = (0, 0, 128)
+            cor_fundo = (224, 255, 255)
+            cor_texto = (0, 0, 128)
+        elif "Investigando" in texto:
+            cor_borda = (75, 0, 130)
+            cor_fundo = (230, 230, 250)
+            cor_texto = (50, 0, 100)
+        else:
+            cor_borda = (0, 0, 0)
+            cor_fundo = (255, 255, 255)
+            cor_texto = (0, 0, 0)
+
         texto_x = int(self.x + (sprite_referencia.width / 2) - (len(texto) * 3))
+        if "Investigando" in texto:
+            texto_x += 10
         texto_y = int(self.y - 18)
-        cor_texto = (255, 255, 255) if "Bebendo" in texto else (0, 0, 0)
         self.janela.draw_text(texto, texto_x, texto_y, size=14, color=cor_texto)
 
-        largura_barra = int(sprite_referencia.width * 0.7)
+        largura_barra = int(sprite_referencia.width * 1) + 35
         altura_barra = 6
         barra_x = int(self.x + (sprite_referencia.width - largura_barra) / 2)
         barra_y = int(texto_y - altura_barra - 4)
-        
-        cor_borda = (120, 90, 60) if "Escavando" in texto else (30, 60, 120)
-        cor_fundo = (237, 201, 175) if "Escavando" in texto else (40, 80, 140)
 
         tela = self.janela.get_screen()
         tela.fill(cor_borda, (barra_x-1, barra_y-1, largura_barra+2, altura_barra+2))

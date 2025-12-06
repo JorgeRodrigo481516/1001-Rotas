@@ -82,6 +82,7 @@ while True:
         if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel and not combate.ativo:
             popup.exibir_morte()
 
+        mensagem_investigacao = ""
         if combate.ativo:
             combate.atualizar(delta_segundos, mouse)
         else:
@@ -91,11 +92,20 @@ while True:
             tem_faca = hud.tem_item('faca')
             bonus_escavacao = 3 if tem_pa else 0
 
+            if teclado.key_pressed("X") and not jogador.tem_mensagem_cabeca() and not mapa.esta_escavando() and not mapa.esta_investigando() and not jogador.esta_bebendo():
+                 coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
+                 if mapa.iniciar_investigacao(coluna, linha):
+                     hud.definir_valores(sede=hud.sede + config.CUSTO_INVESTIGACAO_SEDE, sol=hud.sol + config.CUSTO_INVESTIGACAO_SOL)
+                     hud.exibir_mensagem('sede', f'+{config.CUSTO_INVESTIGACAO_SEDE}', duration=1.5)
+                     hud.exibir_mensagem('sol', f'+{config.CUSTO_INVESTIGACAO_SOL}', duration=1.5)
+
             if teclado.key_pressed("SPACE") and not jogador.tem_mensagem_cabeca():
                 coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
                 mapa.iniciar_escavacao(coluna, linha, tem_pa=tem_pa)
             
             terminou, overlay_adicionada, item_encontrado, valor_dado = mapa.atualizar_escavacao(delta_segundos, bonus_dado=bonus_escavacao, tem_pa=tem_pa, tem_faca=tem_faca)
+            investigando_ativo, _ = mapa.atualizar_investigacao(delta_segundos)
+
             if terminou:
                 chance_combate = (20 - valor_dado) * 5
                 if chance_combate > 0:
@@ -125,7 +135,7 @@ while True:
                 if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel and not combate.ativo:
                     popup.exibir_morte()
 
-            if not jogador.esta_bebendo() and not mapa.esta_escavando():
+            if not jogador.esta_bebendo() and not mapa.esta_escavando() and not mapa.esta_investigando():
                 for numero_tecla in range(1, min(8, len(hud.espacos)) + 1):
                     if teclado.key_pressed(str(numero_tecla)):
                         indice_espaco = numero_tecla - 1

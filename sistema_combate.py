@@ -72,8 +72,11 @@ class SistemaCombate:
         tipo_inimigo = random.choice(['tempestade', 'serpente'])
         self.inimigo_atual = self.dados_inimigos[tipo_inimigo].copy()
         self.imune_turnos = 0
-        self.mensagens = [] 
-        self.timer_mensagem = 6.0
+        
+        nome_inimigo = tipo_inimigo.capitalize()
+        self.mensagens = [(f"Uma {nome_inimigo} apareceu...", (255, 255, 255))]
+        self.timer_mensagem = 3.0
+        
         self.clique_processado = False
         self.encerrando_combate = False
         self.timer_encerramento = 0.0
