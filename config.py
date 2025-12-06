@@ -18,7 +18,7 @@ REGRAS DE USO:
 NOTAS DE IMPLEMENTAÇÃO:
     - 'LARGURA_TILE' e 'ALTURA_TILE' são exceções: inicializados como None, 
       são definidos em tempo de execução pelo módulo Mapa.
-    - Configurações agrupadas semanticamente: CORES, GAMEPLAY, COMBATE, UI.
+    - Configurações agrupadas semanticamente: CORES, JOGABILIDADE, COMBATE, INTERFACE_USUARIO.
 -------------------------------------------------------------------
 """
 
@@ -40,32 +40,32 @@ VELOCIDADE_JOGADOR = 70.0
 VELOCIDADE_ANIMACAO_JOGADOR = 0.2
 
 RECURSOS = {
-    'tile_base_pattern': "assets/Tiles Superfície do Deserto (6 variações)1.png",
-    'player_d1': "assets/protagonistaD1.png",
-    'player_d2': "assets/protagonistaD2.png",
-    'player_e1': "assets/protagonistaE1.png",
-    'player_e2': "assets/protagonistaE2.png",
-    'hud_sol': "assets/spritesheet HUD sol.png",
-    'hud_barra': "assets/spritesheet HUD barra.png",
-    'hud_sede': "assets/spritesheet HUD sede.png",
+    'padrao_base_azulejo': "assets/Tiles Superfície do Deserto (6 variações)1.png",
+    'jogador_direita_1': "assets/protagonistaD1.png",
+    'jogador_direita_2': "assets/protagonistaD2.png",
+    'jogador_esquerda_1': "assets/protagonistaE1.png",
+    'jogador_esquerda_2': "assets/protagonistaE2.png",
+    'painel_sol': "assets/spritesheet HUD sol.png",
+    'painel_barra': "assets/spritesheet HUD barra.png",
+    'painel_sede': "assets/spritesheet HUD sede.png",
     'slot': "assets/spritesheet HUD slot (1).png",
-    'overlay_default': "assets/escavação da superficie do deserto.png",
+    'sobreposicao_padrao': "assets/escavação da superficie do deserto.png",
     'agua': "assets/agua.png",
     'pa': "assets/pa.png",
     'faca': "assets/faca.png",
-    'bg_combate': "assets/tela combate.png",
+    'fundo_combate': "assets/tela combate.png",
     'protagonista_combate': "assets/protagonista1.png",
-    'btn_attack': "assets/botao attack.png",
-    'btn_defend': "assets/botao defend.png",
-    'btn_item': "assets/botao item.png",
-    'btn_run': "assets/botao run.png",
+    'botao_atacar': "assets/botao attack.png",
+    'botao_defender': "assets/botao defend.png",
+    'botao_item': "assets/botao item.png",
+    'botao_fugir': "assets/botao run.png",
     'inimigo_tempestade': "assets/inimigo tempestade.png",
     'inimigo_serpente': "assets/inimigo serpente.png",
-    'bg_morte': "assets/tela morte.png",
-    'btn_restart': "assets/botao restart.png",
+    'fundo_morte': "assets/tela morte.png",
+    'botao_reiniciar': "assets/botao restart.png",
 }
 
-PREENCHIMENTOS_BARRA_HUD = [
+IMAGENS_PREENCHIMENTO_BARRA = [
     "assets/barra cor 1.png",
     "assets/barra cor 2.png",
     "assets/barra cor 3.png",
@@ -117,7 +117,7 @@ CORES = {
     'barra_investigando_preenchimento': (138, 43, 226),
 }
 
-GAMEPLAY = {
+JOGABILIDADE = {
     'max_sede': 1000,
     'max_sol': 1000,
     'sede_inicial': 100,
@@ -144,16 +144,16 @@ COMBATE = {
     'limiar_defesa': 11,
     'limiar_fuga': 14,
     'turnos_imunidade': 2,
-    'timer_mensagem_critico': 6.0,
-    'timer_mensagem_padrao': 4.5,
-    'timer_mensagem_curto': 3.0,
+    'tempo_mensagem_critico': 6.0,
+    'tempo_mensagem_padrao': 4.5,
+    'tempo_mensagem_curto': 3.0,
 }
 
-UI = {
+INTERFACE_USUARIO = {
     'tamanho_fonte_padrao': 14,
     'tamanho_fonte_combate': 10,
     'duracao_msg_cabeca_padrao': 2.0,
     'duracao_msg_cabeca_erro': 3.0,
-    'offset_restart_y': 70,
+    'deslocamento_y_reiniciar': 70,
     'delay_clique_morte': 3,
 }

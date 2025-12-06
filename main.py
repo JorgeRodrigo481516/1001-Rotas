@@ -32,24 +32,24 @@ from sistema_combate import SistemaCombate
 janela = Window(config.LARGURA_JANELA, config.ALTURA_JANELA)
 janela.set_title("1001 Rotas")
 
-popup = PopupFimDeJogo(janela)
-mouse = janela.get_mouse()
+janela_fim_jogo = PopupFimDeJogo(janela)
+mouse_entrada = janela.get_mouse()
 
 mapa = None
-hud = None
+interface = None
 jogador = None
 combate = None
 
 def iniciar_jogo():
-    global mapa, hud, jogador, combate
+    global mapa, interface, jogador, combate
     
     mapa = Mapa(janela)
     mapa.construir()
 
-    hud = InterfaceUsuario(janela)
-    combate = SistemaCombate(janela, hud)
+    interface = InterfaceUsuario(janela)
+    combate = SistemaCombate(janela, interface)
 
-    jogador = Jogador(None, None, janela, mapa, hud=hud)
+    jogador = Jogador(None, None, janela, mapa, interface=interface)
 
 iniciar_jogo()
 
@@ -59,25 +59,25 @@ while True:
     teclado = janela.get_keyboard()
     delta_segundos = janela.delta_time()
 
-    if popup.esta_visivel:
-        if popup.verificar_clique(mouse):
+    if janela_fim_jogo.esta_visivel:
+        if janela_fim_jogo.verificar_clique(mouse_entrada):
             iniciar_jogo()
-            popup.ocultar()
+            janela_fim_jogo.ocultar()
 
-    if not popup.esta_visivel:
-        hud.atualizar(delta_segundos)
+    if not janela_fim_jogo.esta_visivel:
+        interface.atualizar(delta_segundos)
 
-        if hud.verificar_estado_derrota() and not popup.esta_visivel and not combate.ativo:
-            popup.exibir_morte()
+        if interface.verificar_estado_derrota() and not janela_fim_jogo.esta_visivel and not combate.ativo:
+            janela_fim_jogo.exibir_morte()
 
         mensagem_investigacao = ""
         if combate.ativo:
-            combate.atualizar(delta_segundos, mouse)
+            combate.atualizar(delta_segundos, mouse_entrada)
         else:
             jogador.atualizar(teclado, delta_segundos)
 
-            tem_pa = hud.tem_item('pa')
-            tem_faca = hud.tem_item('faca')
+            tem_pa = interface.tem_item('pa')
+            tem_faca = interface.tem_item('faca')
             
             terminou, overlay_adicionada, item_encontrado, valor_dado = mapa.atualizar_escavacao(delta_segundos, tem_pa=tem_pa, tem_faca=tem_faca)
             investigando_ativo, _ = mapa.atualizar_investigacao(delta_segundos)
@@ -86,18 +86,18 @@ while True:
                 combate.verificar_e_iniciar_combate(valor_dado)
                 jogador.processar_recompensa_escavacao(item_encontrado, overlay_adicionada)
 
-                if hud.verificar_estado_derrota() and not popup.esta_visivel and not combate.ativo:
-                    popup.exibir_morte()
+                if interface.verificar_estado_derrota() and not janela_fim_jogo.esta_visivel and not combate.ativo:
+                    janela_fim_jogo.exibir_morte()
 
     mapa.desenhar()
 
     jogador.desenhar()
 
-    hud.desenhar()
+    interface.desenhar()
     
     if combate.ativo:
         combate.desenhar()
 
-    popup.desenhar()
+    janela_fim_jogo.desenhar()
 
     janela.update()

@@ -29,23 +29,23 @@ class InterfaceUsuario:
     def __init__(self, janela):
         self.janela = janela
 
-        self.icone_sol = Sprite(config.RECURSOS['hud_sol'])
-        self.barra_sol = Sprite(config.RECURSOS['hud_barra'])
-        self.icone_sede = Sprite(config.RECURSOS['hud_sede'])
-        self.barra_sede = Sprite(config.RECURSOS['hud_barra'])
+        self.icone_sol = Sprite(config.RECURSOS['painel_sol'])
+        self.barra_sol = Sprite(config.RECURSOS['painel_barra'])
+        self.icone_sede = Sprite(config.RECURSOS['painel_sede'])
+        self.barra_sede = Sprite(config.RECURSOS['painel_barra'])
 
-        self.sede = config.GAMEPLAY['sede_inicial']
-        self.sol = config.GAMEPLAY['sol_inicial']
+        self.sede = config.JOGABILIDADE['sede_inicial']
+        self.sol = config.JOGABILIDADE['sol_inicial']
         self._tempo_acumulado = 0.0
 
-        self.espacos = []
+        self.slots_inventario = []
         self.calcular_disposicao()
 
-        if not hasattr(config, 'PREENCHIMENTOS_BARRA_HUD'):
-            raise RuntimeError('config.PREENCHIMENTOS_BARRA_HUD must be defined (list of image paths)')
+        if not hasattr(config, 'IMAGENS_PREENCHIMENTO_BARRA'):
+            raise RuntimeError('config.IMAGENS_PREENCHIMENTO_BARRA must be defined (list of image paths)')
 
         self.sprites_preenchimento = []
-        for caminho in config.PREENCHIMENTOS_BARRA_HUD:
+        for caminho in config.IMAGENS_PREENCHIMENTO_BARRA:
             try:
                 sprite = Sprite(caminho) if caminho is not None else None
             except Exception:
@@ -68,12 +68,12 @@ class InterfaceUsuario:
         deslocamento_esquerda = getattr(config, 'DESLOCAMENTO_ESQUERDA_HUD', 0)
 
         largura_total = (self.icone_sol.width + self.barra_sol.width + self.icone_sede.width + self.barra_sede.width) + espaco_entre * 3
-        pos_x = ((self.janela.width - largura_total) / 2) - deslocamento_esquerda
+        posicao_x = ((self.janela.width - largura_total) / 2) - deslocamento_esquerda
 
         for sprite in (self.icone_sol, self.barra_sol, self.icone_sede, self.barra_sede):
-            sprite.x = pos_x
+            sprite.x = posicao_x
             sprite.y = y
-            pos_x += sprite.width + espaco_entre
+            posicao_x += sprite.width + espaco_entre
 
         sprite_temporario = Sprite(config.RECURSOS['slot'])
         largura_espaco, altura_espaco = sprite_temporario.width, sprite_temporario.height
@@ -84,26 +84,26 @@ class InterfaceUsuario:
         x_espacos = self.janela.width - (contagem_espacos * largura_espaco) - margem_direita_espaco
         y_espacos = (altura_hud - altura_espaco) / 2
 
-        self.espacos = [Sprite(config.RECURSOS['slot']) for _ in range(contagem_espacos)]
-        for i, s in enumerate(self.espacos):
-            s.x = x_espacos + i * largura_espaco
-            s.y = y_espacos
-        self.sobreposicoes_espacos = [None for _ in range(contagem_espacos)]
+        self.slots_inventario = [Sprite(config.RECURSOS['slot']) for _ in range(contagem_espacos)]
+        for i, slot_atual in enumerate(self.slots_inventario):
+            slot_atual.x = x_espacos + i * largura_espaco
+            slot_atual.y = y_espacos
+        self.sobreposicoes_slots = [None for _ in range(contagem_espacos)]
         self.nomes_itens = [None for _ in range(contagem_espacos)]
 
     def definir_valores(self, sede=None, sol=None):
         if sede is not None:
-            self.sede = max(0, min(config.GAMEPLAY['max_sede'], int(sede)))
+            self.sede = max(0, min(config.JOGABILIDADE['max_sede'], int(sede)))
         if sol is not None:
-            self.sol = max(0, min(config.GAMEPLAY['max_sol'], int(sol)))
+            self.sol = max(0, min(config.JOGABILIDADE['max_sol'], int(sol)))
 
     def atualizar(self, delta_tempo):
         self._tempo_acumulado += delta_tempo
         segundos_completos = int(self._tempo_acumulado)
         
         if segundos_completos >= 1:
-            nova_sede = self.sede + (config.GAMEPLAY['taxa_sede_segundo'] * segundos_completos)
-            novo_sol = self.sol + (config.GAMEPLAY['taxa_sol_segundo'] * segundos_completos)
+            nova_sede = self.sede + (config.JOGABILIDADE['taxa_sede_segundo'] * segundos_completos)
+            novo_sol = self.sol + (config.JOGABILIDADE['taxa_sol_segundo'] * segundos_completos)
             self.definir_valores(sede=nova_sede, sol=novo_sol)
             self._tempo_acumulado -= segundos_completos
 
@@ -132,16 +132,16 @@ class InterfaceUsuario:
         if self._mensagem_sol:
             texto_x = int(self.barra_sol.x + (self.barra_sol.width / 2) - (len(self._mensagem_sol) * 3))
             texto_y = int(self.barra_sol.y + self.barra_sol.height + 4)
-            self.janela.draw_text(self._mensagem_sol, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=config.CORES['preto'])
+            self.janela.draw_text(self._mensagem_sol, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=config.CORES['preto'])
 
         if self._mensagem_sede:
             texto_x = int(self.barra_sede.x + (self.barra_sede.width / 2) - (len(self._mensagem_sede) * 3))
             texto_y = int(self.barra_sede.y + self.barra_sede.height + 4)
-            self.janela.draw_text(self._mensagem_sede, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=config.CORES['preto'])
+            self.janela.draw_text(self._mensagem_sede, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=config.CORES['preto'])
 
-        for s in self.espacos:
-            s.draw()
-        for overlay in getattr(self, 'sobreposicoes_espacos', []):
+        for slot_atual in self.slots_inventario:
+            slot_atual.draw()
+        for overlay in getattr(self, 'sobreposicoes_slots', []):
             if overlay is not None:
                 overlay.draw()
 
@@ -169,7 +169,7 @@ class InterfaceUsuario:
 
         num_blocos = max(1, largura_util // passo_por_bloco)
 
-        blocos_preenchidos = int((valor / float(config.GAMEPLAY['max_sede'])) * num_blocos)
+        blocos_preenchidos = int((valor / float(config.JOGABILIDADE['max_sede'])) * num_blocos)
         blocos_preenchidos = max(0, min(blocos_preenchidos, num_blocos))
 
         segmentos = max(1, len(self.sprites_preenchimento))
@@ -184,8 +184,8 @@ class InterfaceUsuario:
             if sprite_para_desenhar is None:
                 continue
 
-            pos_x = x_inicio + indice * passo_por_bloco
-            sprite_para_desenhar.x = pos_x
+            posicao_x = x_inicio + indice * passo_por_bloco
+            sprite_para_desenhar.x = posicao_x
             sprite_para_desenhar.y = y_inicio
             sprite_para_desenhar.draw()
 
@@ -200,23 +200,23 @@ class InterfaceUsuario:
         return False
 
     def adicionar_item(self, caminho_imagem, nome_item=None):
-        for i, ov in enumerate(self.sobreposicoes_espacos):
+        for i, ov in enumerate(self.sobreposicoes_slots):
             if ov is None:
                 sprite = Sprite(caminho_imagem)
-                espaco = self.espacos[i]
+                espaco = self.slots_inventario[i]
                 sprite.x = espaco.x + (espaco.width - sprite.width) / 2
                 sprite.y = espaco.y + (espaco.height - sprite.height) / 2
-                self.sobreposicoes_espacos[i] = sprite
+                self.sobreposicoes_slots[i] = sprite
                 self.nomes_itens[i] = nome_item
                 return True
         return False
 
     def usar_item(self, index):
-        if index < 0 or index >= len(self.sobreposicoes_espacos):
+        if index < 0 or index >= len(self.sobreposicoes_slots):
             return False
-        if self.sobreposicoes_espacos[index] is None:
+        if self.sobreposicoes_slots[index] is None:
             return False
-        self.sobreposicoes_espacos[index] = None
+        self.sobreposicoes_slots[index] = None
         self.nomes_itens[index] = None
         return True
 
@@ -226,20 +226,20 @@ class InterfaceUsuario:
     def remover_item(self, nome_item):
         try:
             index = self.nomes_itens.index(nome_item)
-            self.sobreposicoes_espacos[index] = None
+            self.sobreposicoes_slots[index] = None
             self.nomes_itens[index] = None
             return True
         except ValueError:
             return False
 
     def recuperar_sede_escavacao(self):
-        recuperacao = config.GAMEPLAY['recuperacao_sede_item']
+        recuperacao = config.JOGABILIDADE['recuperacao_sede_item']
         self.definir_valores(sede=self.sede + recuperacao)
         self.exibir_mensagem('sede', f'+{recuperacao}', duration=1.5)
 
     def consumir_bebida(self, indice_espaco):
         if self.usar_item(indice_espaco):
-            recuperacao = config.GAMEPLAY['recuperacao_sede_beber']
+            recuperacao = config.JOGABILIDADE['recuperacao_sede_beber']
             self.definir_valores(sede=self.sede - recuperacao)
             self.exibir_mensagem('sede', f"-{recuperacao}", duration=1.5)
             return True
@@ -254,7 +254,7 @@ class InterfaceUsuario:
         self.exibir_mensagem('sol', f'+{custo_sol}', duration=1.5)
 
     def verificar_estado_derrota(self):
-        return self.sede >= config.GAMEPLAY['max_sede'] or self.sol >= config.GAMEPLAY['max_sol']
+        return self.sede >= config.JOGABILIDADE['max_sede'] or self.sol >= config.JOGABILIDADE['max_sol']
 
     def aplicar_dano_combate(self, valor):
         self.definir_valores(sede=self.sede + valor)
@@ -263,8 +263,8 @@ class InterfaceUsuario:
         self.definir_valores(sede=self.sede - valor)
 
     def possui_condicao_para_combate(self):
-        vida_restante = config.GAMEPLAY['max_sede'] - self.sede
-        return vida_restante >= config.GAMEPLAY['limiar_sede_combate']
+        vida_restante = config.JOGABILIDADE['max_sede'] - self.sede
+        return vida_restante >= config.JOGABILIDADE['limiar_sede_combate']
 
     def exibir_mensagem(self, tipo, texto, duration=1.5):
         if tipo == 'sede':

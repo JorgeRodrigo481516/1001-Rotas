@@ -28,15 +28,15 @@ import random
 
 
 class Azulejo:
-    def __init__(self, sprite, coluna, linha):
-        self.sprite = sprite
+    def __init__(self, imagem_azulejo, coluna, linha):
+        self.imagem_azulejo = imagem_azulejo
         self.coluna = coluna
         self.linha = linha
         self.sprite_sobreposicao = None
         self.item = None
 
     def desenhar(self):
-        self.sprite.draw()
+        self.imagem_azulejo.draw()
         if self.sprite_sobreposicao:
             self.sprite_sobreposicao.draw()
 
@@ -47,10 +47,10 @@ class Azulejo:
         if self.tem_sobreposicao():
             return False
         if caminho_imagem is None:
-            caminho_imagem = config.RECURSOS['overlay_default']
+            caminho_imagem = config.RECURSOS['sobreposicao_padrao']
         sprite_sobreposicao = Sprite(caminho_imagem)
-        sprite_sobreposicao.x = self.sprite.x + (self.sprite.width - sprite_sobreposicao.width) / 2
-        sprite_sobreposicao.y = self.sprite.y + (self.sprite.height - sprite_sobreposicao.height) / 2
+        sprite_sobreposicao.x = self.imagem_azulejo.x + (self.imagem_azulejo.width - sprite_sobreposicao.width) / 2
+        sprite_sobreposicao.y = self.imagem_azulejo.y + (self.imagem_azulejo.height - sprite_sobreposicao.height) / 2
         self.sprite_sobreposicao = sprite_sobreposicao
         return True
 
@@ -65,7 +65,7 @@ class Mapa:
         self._escavando = False
         self._alvo_escavacao = (None, None)
         self._temporizador_escavacao = 0.0
-        self._duracao_escavacao = config.GAMEPLAY['duracao_escavacao']
+        self._duracao_escavacao = config.JOGABILIDADE['duracao_escavacao']
         
         self._investigando = False
         self._fila_mensagens = []
@@ -73,9 +73,9 @@ class Mapa:
         self._duracao_total_investigacao = 0.0
 
     def construir(self):
-        caminho_base = config.RECURSOS.get('tile_base_pattern')
+        caminho_base = config.RECURSOS.get('padrao_base_azulejo')
         if caminho_base is None:
-            raise RuntimeError('config.RECURSOS["tile_base_pattern"] must be set')
+            raise RuntimeError('config.RECURSOS["padrao_base_azulejo"] must be set')
 
         exemplo = Sprite(caminho_base)
         self.largura_tile = exemplo.width
@@ -84,7 +84,7 @@ class Mapa:
         config.LARGURA_TILE = self.largura_tile
         config.ALTURA_TILE = self.altura_tile
 
-        num_colunas = int(self.janela.width / self.largura_tile) + 1
+        numero_colunas = int(self.janela.width / self.largura_tile) + 1
         num_linhas = int(self.janela.height / self.altura_tile) + 1
 
         if '.' in caminho_base:
@@ -105,7 +105,7 @@ class Mapa:
         usa_placeholder = '{}' in padrao_arquivo
 
         for linha in range(linha_inicio_hud, num_linhas):
-            for coluna in range(num_colunas):
+            for coluna in range(numero_colunas):
                 indice_variacao = random.randint(1, 6)
                 caminho_azulejo = padrao_arquivo.format(indice_variacao) if usa_placeholder else caminho_base
 
@@ -118,9 +118,9 @@ class Mapa:
                 self.azulejos_por_coordenada[(coluna, linha)] = novo_azulejo
 
         total_azulejos = len(self.azulejos)
-        qtd_agua = int(total_azulejos * config.GAMEPLAY['distribuicao_itens']['agua'])
-        qtd_pa = int(total_azulejos * config.GAMEPLAY['distribuicao_itens']['pa'])
-        qtd_faca = int(total_azulejos * config.GAMEPLAY['distribuicao_itens']['faca'])
+        qtd_agua = int(total_azulejos * config.JOGABILIDADE['distribuicao_itens']['agua'])
+        qtd_pa = int(total_azulejos * config.JOGABILIDADE['distribuicao_itens']['pa'])
+        qtd_faca = int(total_azulejos * config.JOGABILIDADE['distribuicao_itens']['faca'])
         
         itens = ['agua'] * qtd_agua + ['pa'] * qtd_pa + ['faca'] * qtd_faca + [None] * (total_azulejos - qtd_agua - qtd_pa - qtd_faca)
         random.shuffle(itens)
@@ -181,9 +181,9 @@ class Mapa:
              self._temporizador_escavacao = 0.0
              return (True, False, 'faca_duplicada', 0)
         
-        bonus_dado = config.GAMEPLAY['bonus_escavacao_pa'] if tem_pa else 0
-        dado = random.randint(0, config.GAMEPLAY['dado_escavacao'])
-        sucesso_escavacao = (dado + bonus_dado) > config.GAMEPLAY['dificuldade_escavacao']
+        bonus_dado = config.JOGABILIDADE['bonus_escavacao_pa'] if tem_pa else 0
+        dado = random.randint(0, config.JOGABILIDADE['dado_escavacao'])
+        sucesso_escavacao = (dado + bonus_dado) > config.JOGABILIDADE['dificuldade_escavacao']
         
         adicionado = False
         if sucesso_escavacao:

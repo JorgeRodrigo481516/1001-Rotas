@@ -27,22 +27,22 @@ import config
 
 
 class Jogador:
-    def __init__(self, x, y, janela, mapa, velocidade=None, velocidade_animacao=None, hud=None):
+    def __init__(self, posicao_x, posicao_y, janela, mapa, velocidade=None, velocidade_animacao=None, interface=None):
         self.janela = janela
         self.mapa = mapa
-        self.hud = hud
+        self.interface = interface
 
         self.andar_direita_1, self.andar_direita_2, self.andar_esquerda_1, self.andar_esquerda_2 = (
-            Sprite(config.RECURSOS['player_d1']),
-            Sprite(config.RECURSOS['player_d2']),
-            Sprite(config.RECURSOS['player_e1']),
-            Sprite(config.RECURSOS['player_e2']),
+            Sprite(config.RECURSOS['jogador_direita_1']),
+            Sprite(config.RECURSOS['jogador_direita_2']),
+            Sprite(config.RECURSOS['jogador_esquerda_1']),
+            Sprite(config.RECURSOS['jogador_esquerda_2']),
         )
 
-        if x is None or y is None:
+        if posicao_x is None or posicao_y is None:
             self.definir_posicao_inicial()
         else:
-            self.x, self.y = x, y
+            self.x, self.y = posicao_x, posicao_y
 
         self.ultima_direcao = 'right'
         self.quadro_alternativo = False
@@ -53,17 +53,17 @@ class Jogador:
 
         self._bebendo = False
         self._temporizador_bebida = 0.0
-        self._duracao_bebida = config.GAMEPLAY['duracao_beber']
+        self._duracao_bebida = config.JOGABILIDADE['duracao_beber']
         self._indice_espaco_bebida = None
 
         self._mensagem_cabeca = ""
         self._temporizador_mensagem_cabeca = 0.0
 
-    def atualizar(self, teclado, delta_tempo):
+    def atualizar(self, teclado, tempo_decorrido_segundos):
         self.processar_input_acoes(teclado)
 
         if self._temporizador_mensagem_cabeca > 0:
-            self._temporizador_mensagem_cabeca -= delta_tempo
+            self._temporizador_mensagem_cabeca -= tempo_decorrido_segundos
             if self._temporizador_mensagem_cabeca <= 0:
                 self._mensagem_cabeca = ""
                 self._temporizador_mensagem_cabeca = 0.0
@@ -73,16 +73,16 @@ class Jogador:
             self.quadro_alternativo = False
             self.tempo_animacao = 0.0
             if self._bebendo:
-                self._temporizador_bebida += delta_tempo
+                self._temporizador_bebida += tempo_decorrido_segundos
                 if self._temporizador_bebida >= self._duracao_bebida:
                     indice_espaco = self._indice_espaco_bebida
-                    if self.hud is not None:
-                        self.hud.consumir_bebida(indice_espaco)
+                    if self.interface is not None:
+                        self.interface.consumir_bebida(indice_espaco)
                     self._bebendo = False
                     self._temporizador_bebida = 0.0
                     self._indice_espaco_bebida = None
         else:
-            passo = self.velocidade_movimento * delta_tempo
+            passo = self.velocidade_movimento * tempo_decorrido_segundos
 
             delta_x = 0
             if teclado.key_pressed("RIGHT"):
@@ -103,7 +103,7 @@ class Jogador:
             esta_movendo = (delta_x != 0) or (delta_y != 0)
 
         if esta_movendo:
-            self.tempo_animacao += delta_tempo
+            self.tempo_animacao += tempo_decorrido_segundos
             if self.tempo_animacao >= self.velocidade_animacao:
                 self.tempo_animacao -= self.velocidade_animacao
                 self.quadro_alternativo = not self.quadro_alternativo
@@ -127,20 +127,20 @@ class Jogador:
         if teclado.key_pressed("X"):
              coluna, linha = self.obter_coordenadas_grade(self.mapa.largura_tile, self.mapa.altura_tile)
              if self.mapa.iniciar_investigacao(coluna, linha):
-                 if self.hud:
-                    self.hud.aplicar_custo_investigacao()
+                 if self.interface:
+                    self.interface.aplicar_custo_investigacao()
 
         if teclado.key_pressed("SPACE"):
             coluna, linha = self.obter_coordenadas_grade(self.mapa.largura_tile, self.mapa.altura_tile)
-            tem_pa = self.hud.tem_item('pa') if self.hud else False
+            tem_pa = self.interface.tem_item('pa') if self.interface else False
             self.mapa.iniciar_escavacao(coluna, linha, tem_pa=tem_pa)
 
-        if self.hud:
-            for numero_tecla in range(1, min(8, len(self.hud.espacos)) + 1):
+        if self.interface:
+            for numero_tecla in range(1, min(8, len(self.interface.slots_inventario)) + 1):
                 if teclado.key_pressed(str(numero_tecla)):
                     indice_espaco = numero_tecla - 1
-                    if self.hud.sobreposicoes_espacos[indice_espaco] is not None:
-                        self.beber(indice_espaco, duration=config.GAMEPLAY['duracao_beber'])
+                    if self.interface.sobreposicoes_slots[indice_espaco] is not None:
+                        self.beber(indice_espaco, duration=config.JOGABILIDADE['duracao_beber'])
                     break
 
     def desenhar(self):
@@ -154,7 +154,7 @@ class Jogador:
         if self._mensagem_cabeca:
             texto_x = int(self.x + (sprite_atual.width / 2) - (len(self._mensagem_cabeca) * 3))
             texto_y = int(self.y - 25)
-            self.janela.draw_text(self._mensagem_cabeca, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=config.CORES['vermelho'])
+            self.janela.draw_text(self._mensagem_cabeca, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=config.CORES['vermelho'])
 
         if self.mapa.esta_escavando():
             self._desenhar_barra_progresso(sprite_atual, "Escavando..", self.mapa.progresso_escavacao(), config.CORES['barra_escavacao_preenchimento'])
@@ -165,7 +165,7 @@ class Jogador:
             if msg:
                 texto_x = int(self.x + (sprite_atual.width / 2) - (len(msg) * 3))
                 texto_y = int(self.y - 55)
-                self.janela.draw_text(msg, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=config.CORES['texto_investigacao'])
+                self.janela.draw_text(msg, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=config.CORES['texto_investigacao'])
 
         if self._bebendo:
             progresso = min(1.0, self._temporizador_bebida / max(1e-6, self._duracao_bebida))
@@ -193,7 +193,7 @@ class Jogador:
         if "Investigando" in texto:
             texto_x += 10
         texto_y = int(self.y - 18)
-        self.janela.draw_text(texto, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=cor_texto)
+        self.janela.draw_text(texto, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=cor_texto)
 
         largura_barra = int(sprite_referencia.width * 1) + 35
         altura_barra = 6
@@ -233,8 +233,8 @@ class Jogador:
         return int(self.x / largura_tile), int(self.y / altura_tile)
 
     def definir_posicao_inicial(self):
-        if self.hud and len(self.hud.espacos) > 0:
-            altura_espaco_hud = self.hud.espacos[0].height
+        if self.interface and len(self.interface.slots_inventario) > 0:
+            altura_espaco_hud = self.interface.slots_inventario[0].height
         else:
             altura_espaco_hud = 0
         
@@ -243,15 +243,15 @@ class Jogador:
 
     def processar_recompensa_escavacao(self, item_encontrado, overlay_adicionada):
         if item_encontrado == 'pa_duplicada':
-             self.exibir_mensagem_cabeca("Só posso carregar uma pá...", duration=config.UI['duracao_msg_cabeca_erro'])
+             self.exibir_mensagem_cabeca("Só posso carregar uma pá...", duration=config.INTERFACE_USUARIO['duracao_msg_cabeca_erro'])
         elif item_encontrado == 'faca_duplicada':
-             self.exibir_mensagem_cabeca("Só posso carregar uma faca...", duration=config.UI['duracao_msg_cabeca_erro'])
+             self.exibir_mensagem_cabeca("Só posso carregar uma faca...", duration=config.INTERFACE_USUARIO['duracao_msg_cabeca_erro'])
         else:
-            if self.hud:
-                self.hud.recuperar_sede_escavacao()
+            if self.interface:
+                self.interface.recuperar_sede_escavacao()
             
             if overlay_adicionada:
-                if self.hud:
-                    self.hud.processar_item_encontrado(item_encontrado)
+                if self.interface:
+                    self.interface.processar_item_encontrado(item_encontrado)
             else:
-                self.exibir_mensagem_cabeca("Não consegui...", duration=config.UI['duracao_msg_cabeca_padrao'])
+                self.exibir_mensagem_cabeca("Não consegui...", duration=config.INTERFACE_USUARIO['duracao_msg_cabeca_padrao'])

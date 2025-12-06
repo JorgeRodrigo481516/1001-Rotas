@@ -29,17 +29,17 @@ class PopupFimDeJogo:
         self.esta_visivel = False
         self.tempo_inicio_morte = 0
         
-        self.bg_morte = GameImage(config.RECURSOS['bg_morte'])
-        self.btn_restart = GameImage(config.RECURSOS['btn_restart'])
+        self.fundo_morte = GameImage(config.RECURSOS['fundo_morte'])
+        self.botao_reiniciar = GameImage(config.RECURSOS['botao_reiniciar'])
         
         self._atualizar_posicao()
 
     def _atualizar_posicao(self):
-        self.bg_morte.x = (self.janela.width - self.bg_morte.width) / 2
-        self.bg_morte.y = (self.janela.height - self.bg_morte.height) / 2
+        self.fundo_morte.x = (self.janela.width - self.fundo_morte.width) / 2
+        self.fundo_morte.y = (self.janela.height - self.fundo_morte.height) / 2
         
-        self.btn_restart.x = (self.janela.width - self.btn_restart.width) / 2
-        self.btn_restart.y = self.bg_morte.y + self.bg_morte.height - config.UI['offset_restart_y']
+        self.botao_reiniciar.x = (self.janela.width - self.botao_reiniciar.width) / 2
+        self.botao_reiniciar.y = self.fundo_morte.y + self.fundo_morte.height - config.INTERFACE_USUARIO['deslocamento_y_reiniciar']
 
     def exibir_morte(self):
         self.esta_visivel = True
@@ -52,11 +52,11 @@ class PopupFimDeJogo:
         if not self.esta_visivel:
             return False
 
-        if time.time() - self.tempo_inicio_morte < config.UI['delay_clique_morte']:
+        if time.time() - self.tempo_inicio_morte < config.INTERFACE_USUARIO['delay_clique_morte']:
             return False
             
         if mouse.is_button_pressed(1):
-            if mouse.is_over_object(self.btn_restart):
+            if mouse.is_over_object(self.botao_reiniciar):
                 return True
         return False
 
@@ -64,5 +64,5 @@ class PopupFimDeJogo:
         if not self.esta_visivel:
             return
 
-        self.bg_morte.draw()
-        self.btn_restart.draw()
+        self.fundo_morte.draw()
+        self.botao_reiniciar.draw()
