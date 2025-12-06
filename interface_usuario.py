@@ -1,21 +1,24 @@
 """
 -------------------------------------------------------------------
 DESCRIÇÃO:
-    Gerencia o HUD (Heads-Up Display), barras de status e inventário.
+    Gerencia o HUD (Heads-Up Display) e centraliza as regras de 
+    sobrevivência (Sede, Sol) e gestão de inventário.
 
 RESPONSABILIDADE:
-    1. Exibir barras de Sede e Sol.
-    2. Gerenciar slots de inventário e itens coletados.
-    3. Exibir mensagens temporárias na tela.
-    4. Calcular layout dinâmico baseado na resolução.
+    1. Visualização: Renderizar barras de status, slots de inventário e mensagens de feedback.
+    2. Simulação: Controlar a evolução temporal dos status (taxas de sede/sol por segundo).
+    3. Regras de Negócio: Aplicar custos de ações (investigar) e benefícios de itens (beber).
+    4. Inventário: Gerenciar adição, remoção e uso de itens nos slots.
+    5. Interface de Combate: Fornecer métodos para o sistema de combate aplicar dano/cura e verificar condições.
 
 REGRAS DE USO:
-    - Deve ser atualizado com 'definir_valores()' para refletir estado do jogo.
-    - 'desenhar()' renderiza todos os elementos da interface.
+    - 'atualizar(delta_tempo)' deve ser chamado a cada frame para processar a simulação.
+    - Métodos como 'consumir_bebida', 'aplicar_custo_investigacao' e 'aplicar_dano_combate' encapsulam a lógica de jogo.
+    - 'verificar_estado_derrota()' centraliza a checagem de Game Over.
 
 NOTAS DE IMPLEMENTAÇÃO:
-    - Barras de status usam sprites de preenchimento repetidos.
-    - Slots de inventário suportam sobreposição de itens.
+    - Centraliza a lógica matemática de sobrevivência para retirar essa carga do 'main.py', 'jogador.py' e 'sistema_combate.py'.
+    - Barras de status usam sprites de preenchimento repetidos para visualização dinâmica.
 -------------------------------------------------------------------
 """
 from PPlay.sprite import Sprite
@@ -31,8 +34,9 @@ class InterfaceUsuario:
         self.icone_sede = Sprite(config.RECURSOS['hud_sede'])
         self.barra_sede = Sprite(config.RECURSOS['hud_barra'])
 
-        self.sede = 100
-        self.sol = 100
+        self.sede = config.GAMEPLAY['sede_inicial']
+        self.sol = config.GAMEPLAY['sol_inicial']
+        self._tempo_acumulado = 0.0
 
         self.espacos = []
         self.calcular_disposicao()
@@ -89,21 +93,19 @@ class InterfaceUsuario:
 
     def definir_valores(self, sede=None, sol=None):
         if sede is not None:
-            self.sede = max(0, min(1000, int(sede)))
+            self.sede = max(0, min(config.GAMEPLAY['max_sede'], int(sede)))
         if sol is not None:
-            self.sol = max(0, min(1000, int(sol)))
+            self.sol = max(0, min(config.GAMEPLAY['max_sol'], int(sol)))
 
-    def desenhar(self):
-        self.icone_sol.draw()
-        self.barra_sol.draw()
-
-        self.icone_sede.draw()
-        self.barra_sede.draw()
-
-        self._desenhar_barra_status(self.barra_sol, self.sol)
-        self._desenhar_barra_status(self.barra_sede, self.sede)
-
-        delta_tempo = self.janela.delta_time()
+    def atualizar(self, delta_tempo):
+        self._tempo_acumulado += delta_tempo
+        segundos_completos = int(self._tempo_acumulado)
+        
+        if segundos_completos >= 1:
+            nova_sede = self.sede + (config.GAMEPLAY['taxa_sede_segundo'] * segundos_completos)
+            novo_sol = self.sol + (config.GAMEPLAY['taxa_sol_segundo'] * segundos_completos)
+            self.definir_valores(sede=nova_sede, sol=novo_sol)
+            self._tempo_acumulado -= segundos_completos
 
         if self._temporizador_mensagem_sede > 0:
             self._temporizador_mensagem_sede -= delta_tempo
@@ -117,15 +119,25 @@ class InterfaceUsuario:
                 self._mensagem_sol = ""
                 self._temporizador_mensagem_sol = 0.0
 
+    def desenhar(self):
+        self.icone_sol.draw()
+        self.barra_sol.draw()
+
+        self.icone_sede.draw()
+        self.barra_sede.draw()
+
+        self._desenhar_barra_status(self.barra_sol, self.sol)
+        self._desenhar_barra_status(self.barra_sede, self.sede)
+
         if self._mensagem_sol:
             texto_x = int(self.barra_sol.x + (self.barra_sol.width / 2) - (len(self._mensagem_sol) * 3))
             texto_y = int(self.barra_sol.y + self.barra_sol.height + 4)
-            self.janela.draw_text(self._mensagem_sol, texto_x, texto_y, size=14, color=(0,0,0))
+            self.janela.draw_text(self._mensagem_sol, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=config.CORES['preto'])
 
         if self._mensagem_sede:
             texto_x = int(self.barra_sede.x + (self.barra_sede.width / 2) - (len(self._mensagem_sede) * 3))
             texto_y = int(self.barra_sede.y + self.barra_sede.height + 4)
-            self.janela.draw_text(self._mensagem_sede, texto_x, texto_y, size=14, color=(0,0,0))
+            self.janela.draw_text(self._mensagem_sede, texto_x, texto_y, size=config.UI['tamanho_fonte_padrao'], color=config.CORES['preto'])
 
         for s in self.espacos:
             s.draw()
@@ -157,7 +169,7 @@ class InterfaceUsuario:
 
         num_blocos = max(1, largura_util // passo_por_bloco)
 
-        blocos_preenchidos = int((valor / 1000.0) * num_blocos)
+        blocos_preenchidos = int((valor / float(config.GAMEPLAY['max_sede'])) * num_blocos)
         blocos_preenchidos = max(0, min(blocos_preenchidos, num_blocos))
 
         segmentos = max(1, len(self.sprites_preenchimento))
@@ -176,6 +188,16 @@ class InterfaceUsuario:
             sprite_para_desenhar.x = pos_x
             sprite_para_desenhar.y = y_inicio
             sprite_para_desenhar.draw()
+
+    def processar_item_encontrado(self, nome_item):
+        """Adiciona um item ao inventário baseado no nome, buscando o asset correto."""
+        if not nome_item:
+            return False
+            
+        caminho_imagem = config.RECURSOS.get(nome_item)
+        if caminho_imagem:
+            return self.adicionar_item(caminho_imagem, nome_item)
+        return False
 
     def adicionar_item(self, caminho_imagem, nome_item=None):
         for i, ov in enumerate(self.sobreposicoes_espacos):
@@ -209,6 +231,40 @@ class InterfaceUsuario:
             return True
         except ValueError:
             return False
+
+    def recuperar_sede_escavacao(self):
+        recuperacao = config.GAMEPLAY['recuperacao_sede_item']
+        self.definir_valores(sede=self.sede + recuperacao)
+        self.exibir_mensagem('sede', f'+{recuperacao}', duration=1.5)
+
+    def consumir_bebida(self, indice_espaco):
+        if self.usar_item(indice_espaco):
+            recuperacao = config.GAMEPLAY['recuperacao_sede_beber']
+            self.definir_valores(sede=self.sede - recuperacao)
+            self.exibir_mensagem('sede', f"-{recuperacao}", duration=1.5)
+            return True
+        return False
+
+    def aplicar_custo_investigacao(self):
+        custo_sede = config.CUSTO_INVESTIGACAO_SEDE
+        custo_sol = config.CUSTO_INVESTIGACAO_SOL
+        
+        self.definir_valores(sede=self.sede + custo_sede, sol=self.sol + custo_sol)
+        self.exibir_mensagem('sede', f'+{custo_sede}', duration=1.5)
+        self.exibir_mensagem('sol', f'+{custo_sol}', duration=1.5)
+
+    def verificar_estado_derrota(self):
+        return self.sede >= config.GAMEPLAY['max_sede'] or self.sol >= config.GAMEPLAY['max_sol']
+
+    def aplicar_dano_combate(self, valor):
+        self.definir_valores(sede=self.sede + valor)
+
+    def aplicar_cura_combate(self, valor):
+        self.definir_valores(sede=self.sede - valor)
+
+    def possui_condicao_para_combate(self):
+        vida_restante = config.GAMEPLAY['max_sede'] - self.sede
+        return vida_restante >= config.GAMEPLAY['limiar_sede_combate']
 
     def exibir_mensagem(self, tipo, texto, duration=1.5):
         if tipo == 'sede':

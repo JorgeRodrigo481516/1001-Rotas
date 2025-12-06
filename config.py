@@ -1,19 +1,24 @@
 """
 -------------------------------------------------------------------
 DESCRIÇÃO:
-    Arquivo central de configurações, constantes e caminhos de recursos.
+    Repositório central de dados estáticos, constantes de configuração 
+    e caminhos de recursos (assets).
 
 RESPONSABILIDADE:
-    1. Definir resolução e parâmetros da janela.
-    2. Mapear caminhos de arquivos de imagem (assets).
-    3. Definir constantes de gameplay (velocidade, dimensões).
+    1. Parâmetros Globais: Resolução, taxas de atualização e dimensões fixas.
+    2. Gerenciamento de Assets: Mapeamento centralizado de caminhos de imagens.
+    3. Balanceamento: Definição de valores de gameplay (dano, recuperação, chances).
+    4. Estilização: Paleta de cores e configurações de UI.
 
 REGRAS DE USO:
-    - Importado por quase todos os módulos.
-    - Alterações aqui afetam o comportamento global do jogo.
+    - Este arquivo deve conter APENAS definições de dados (constantes, dicionários).
+    - Nenhuma lógica de execução ou classes deve ser implementada aqui.
+    - Importado globalmente para garantir consistência de valores.
 
 NOTAS DE IMPLEMENTAÇÃO:
-    - Dicionário RECURSOS centraliza paths de assets.
+    - 'LARGURA_TILE' e 'ALTURA_TILE' são exceções: inicializados como None, 
+      são definidos em tempo de execução pelo módulo Mapa.
+    - Configurações agrupadas semanticamente: CORES, GAMEPLAY, COMBATE, UI.
 -------------------------------------------------------------------
 """
 
@@ -48,6 +53,16 @@ RECURSOS = {
     'agua': "assets/agua.png",
     'pa': "assets/pa.png",
     'faca': "assets/faca.png",
+    'bg_combate': "assets/tela combate.png",
+    'protagonista_combate': "assets/protagonista1.png",
+    'btn_attack': "assets/botao attack.png",
+    'btn_defend': "assets/botao defend.png",
+    'btn_item': "assets/botao item.png",
+    'btn_run': "assets/botao run.png",
+    'inimigo_tempestade': "assets/inimigo tempestade.png",
+    'inimigo_serpente': "assets/inimigo serpente.png",
+    'bg_morte': "assets/tela morte.png",
+    'btn_restart': "assets/botao restart.png",
 }
 
 PREENCHIMENTOS_BARRA_HUD = [
@@ -74,3 +89,71 @@ TEMPO_MENSAGEM_INVESTIGACAO = 2.0
 DELAY_ENTRE_MENSAGENS = 0.3
 DELAY_INICIAL_INVESTIGACAO = 1.0
 DELAY_FINAL_INVESTIGACAO = 1.0
+
+CORES = {
+    'branco': (255, 255, 255),
+    'preto': (0, 0, 0),
+    'vermelho': (255, 0, 0),
+    'vermelho_claro': (255, 50, 50),
+    'vermelho_agua': (255, 100, 100),
+    'verde': (0, 255, 0),
+    'verde_claro': (150, 255, 150),
+    'azul_deepskyblue': (0, 191, 255),
+    'azul_royal': (65, 105, 225),
+    'azul_escuro': (0, 0, 128),
+    'amarelo': (255, 255, 0),
+    'dourado': (255, 215, 0),
+    'laranja': (255, 165, 0),
+    'cinza': (200, 200, 200),
+    'background_janela': (245, 198, 132),
+    'texto_investigacao': (50, 0, 100),
+    'barra_escavacao_borda': (101, 67, 33),
+    'barra_escavacao_fundo': (245, 222, 179),
+    'barra_escavacao_preenchimento': (194, 117, 30),
+    'barra_bebendo_borda': (0, 0, 128),
+    'barra_bebendo_fundo': (224, 255, 255),
+    'barra_investigando_borda': (75, 0, 130),
+    'barra_investigando_fundo': (230, 230, 250),
+    'barra_investigando_preenchimento': (138, 43, 226),
+}
+
+GAMEPLAY = {
+    'max_sede': 1000,
+    'max_sol': 1000,
+    'sede_inicial': 100,
+    'sol_inicial': 100,
+    'taxa_sede_segundo': 4,
+    'taxa_sol_segundo': 2,
+    'recuperacao_sede_item': 100,
+    'recuperacao_sede_beber': 200,
+    'bonus_escavacao_pa': 3,
+    'bonus_combate_faca': 3,
+    'limiar_sede_combate': 20,
+    'duracao_beber': 3.0,
+    'duracao_escavacao': 2.0,
+    'dificuldade_escavacao': 12,
+    'dado_escavacao': 20,
+    'distribuicao_itens': {'agua': 0.35, 'pa': 0.05, 'faca': 0.05},
+}
+
+COMBATE = {
+    'dano_base_tempestade': 100,
+    'dano_base_serpente': 130,
+    'limiar_critico': 18,
+    'limiar_sucesso_parcial': 9,
+    'limiar_defesa': 11,
+    'limiar_fuga': 14,
+    'turnos_imunidade': 2,
+    'timer_mensagem_critico': 6.0,
+    'timer_mensagem_padrao': 4.5,
+    'timer_mensagem_curto': 3.0,
+}
+
+UI = {
+    'tamanho_fonte_padrao': 14,
+    'tamanho_fonte_combate': 10,
+    'duracao_msg_cabeca_padrao': 2.0,
+    'duracao_msg_cabeca_erro': 3.0,
+    'offset_restart_y': 70,
+    'delay_clique_morte': 3,
+}

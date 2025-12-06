@@ -1,21 +1,23 @@
 """
 -------------------------------------------------------------------
 DESCRIÇÃO:
-    Ponto de entrada (Entry Point) do jogo "1001 Rotas".
+    Ponto de entrada (Entry Point) e orquestrador principal do jogo "1001 Rotas".
 
 RESPONSABILIDADE:
-    1. Inicializar a Janela, o Mapa, o Jogador e a Interface (HUD).
+    1. Inicializar a Janela e os subsistemas principais (Mapa, HUD, Jogador, Combate).
     2. Executar o Game Loop (Loop Principal).
-    3. Gerenciar o tempo (delta_time) e inputs globais.
-    4. Orquestrar a comunicação entre os módulos.
+    3. Gerenciar o fluxo global de estados (Jogo, Combate, Game Over).
+    4. Delegar a lógica específica para as classes competentes (Mapa, Jogador, etc.).
 
 REGRAS DE USO:
     - Executar este arquivo diretamente para iniciar o jogo.
-    - A ordem de inicialização é crítica: Janela -> Mapa -> HUD -> Jogador.
+    - Atua como controlador central, conectando os eventos de um módulo às ações de outro.
 
 NOTAS DE IMPLEMENTAÇÃO:
     - O jogo roda em loop infinito (while True).
-    - Gerencia a condição de vitória/derrota através do PopupFimDeJogo.
+    - A lógica de regras de negócio (ex: o que acontece ao achar um item) foi movida
+      para as classes de entidade (Jogador, InterfaceUsuario), mantendo este arquivo
+      focado apenas na coordenação.
 -------------------------------------------------------------------
 """
 from PPlay.window import Window
@@ -26,7 +28,6 @@ from interface_usuario import InterfaceUsuario
 import config
 from popup_fim_de_jogo import PopupFimDeJogo
 from sistema_combate import SistemaCombate
-import random
 
 janela = Window(config.LARGURA_JANELA, config.ALTURA_JANELA)
 janela.set_title("1001 Rotas")
@@ -38,10 +39,9 @@ mapa = None
 hud = None
 jogador = None
 combate = None
-tempo_acumulado_hud = 0.0
 
 def iniciar_jogo():
-    global mapa, hud, jogador, combate, tempo_acumulado_hud
+    global mapa, hud, jogador, combate
     
     mapa = Mapa(janela)
     mapa.construir()
@@ -49,20 +49,12 @@ def iniciar_jogo():
     hud = InterfaceUsuario(janela)
     combate = SistemaCombate(janela, hud)
 
-    tempo_acumulado_hud = 0.0
-
-    if len(hud.espacos) > 0:
-        altura_espaco_hud = hud.espacos[0].height
-    else:
-        altura_espaco_hud = 0
-    jogador_x = mapa.largura_tile
-    jogador_y = janela.height - (config.ALTURA_HUD_EM_TILES * mapa.altura_tile) - max(0, altura_espaco_hud)
-    jogador = Jogador(jogador_x, jogador_y, janela, mapa, hud=hud)
+    jogador = Jogador(None, None, janela, mapa, hud=hud)
 
 iniciar_jogo()
 
 while True:
-    janela.set_background_color((245, 198, 132))
+    janela.set_background_color(config.CORES['background_janela'])
 
     teclado = janela.get_keyboard()
     delta_segundos = janela.delta_time()
@@ -73,13 +65,9 @@ while True:
             popup.ocultar()
 
     if not popup.esta_visivel:
-        tempo_acumulado_hud += delta_segundos
-        segundos_completos = int(tempo_acumulado_hud)
-        if segundos_completos >= 1:
-            hud.definir_valores(sede=hud.sede + (4 * segundos_completos), sol=hud.sol + (2 * segundos_completos))
-            tempo_acumulado_hud -= segundos_completos
+        hud.atualizar(delta_segundos)
 
-        if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel and not combate.ativo:
+        if hud.verificar_estado_derrota() and not popup.esta_visivel and not combate.ativo:
             popup.exibir_morte()
 
         mensagem_investigacao = ""
@@ -90,61 +78,18 @@ while True:
 
             tem_pa = hud.tem_item('pa')
             tem_faca = hud.tem_item('faca')
-            bonus_escavacao = 3 if tem_pa else 0
-
-            if teclado.key_pressed("X") and not jogador.tem_mensagem_cabeca() and not mapa.esta_escavando() and not mapa.esta_investigando() and not jogador.esta_bebendo():
-                 coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
-                 if mapa.iniciar_investigacao(coluna, linha):
-                     hud.definir_valores(sede=hud.sede + config.CUSTO_INVESTIGACAO_SEDE, sol=hud.sol + config.CUSTO_INVESTIGACAO_SOL)
-                     hud.exibir_mensagem('sede', f'+{config.CUSTO_INVESTIGACAO_SEDE}', duration=1.5)
-                     hud.exibir_mensagem('sol', f'+{config.CUSTO_INVESTIGACAO_SOL}', duration=1.5)
-
-            if teclado.key_pressed("SPACE") and not jogador.tem_mensagem_cabeca():
-                coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
-                mapa.iniciar_escavacao(coluna, linha, tem_pa=tem_pa)
             
-            terminou, overlay_adicionada, item_encontrado, valor_dado = mapa.atualizar_escavacao(delta_segundos, bonus_dado=bonus_escavacao, tem_pa=tem_pa, tem_faca=tem_faca)
+            terminou, overlay_adicionada, item_encontrado, valor_dado = mapa.atualizar_escavacao(delta_segundos, tem_pa=tem_pa, tem_faca=tem_faca)
             investigando_ativo, _ = mapa.atualizar_investigacao(delta_segundos)
 
             if terminou:
-                chance_combate = (20 - valor_dado) * 5
-                if chance_combate > 0:
-                    if (1000 - hud.sede) >= 20:
-                        roll_combate = random.randint(1, 100)
-                        if roll_combate <= chance_combate:
-                            combate.iniciar_combate()
+                combate.verificar_e_iniciar_combate(valor_dado)
+                jogador.processar_recompensa_escavacao(item_encontrado, overlay_adicionada)
 
-                if item_encontrado == 'pa_duplicada':
-                     jogador.exibir_mensagem_cabeca("Só posso carregar uma pá...", duration=3.0)
-                elif item_encontrado == 'faca_duplicada':
-                     jogador.exibir_mensagem_cabeca("Só posso carregar uma faca...", duration=3.0)
-                else:
-                    hud.definir_valores(sede=hud.sede + 100)
-                    hud.exibir_mensagem('sede', '+100', duration=1.5)
-                    
-                    if overlay_adicionada:
-                        if item_encontrado == 'agua':
-                            hud.adicionar_item(config.RECURSOS.get('agua'), 'agua')
-                        elif item_encontrado == 'pa':
-                            hud.adicionar_item(config.RECURSOS.get('pa'), 'pa')
-                        elif item_encontrado == 'faca':
-                            hud.adicionar_item(config.RECURSOS.get('faca'), 'faca')
-                    else:
-                        jogador.exibir_mensagem_cabeca("Não consegui...", duration=2.0)
-
-                if (hud.sede >= 1000 or hud.sol >= 1000) and not popup.esta_visivel and not combate.ativo:
+                if hud.verificar_estado_derrota() and not popup.esta_visivel and not combate.ativo:
                     popup.exibir_morte()
 
-            if not jogador.esta_bebendo() and not mapa.esta_escavando() and not mapa.esta_investigando():
-                for numero_tecla in range(1, min(8, len(hud.espacos)) + 1):
-                    if teclado.key_pressed(str(numero_tecla)):
-                        indice_espaco = numero_tecla - 1
-                        if hud.sobreposicoes_espacos[indice_espaco] is not None:
-                            jogador.beber(indice_espaco, duration=3.0)
-                        break
-
-    for azulejo in mapa.azulejos:
-        azulejo.desenhar()
+    mapa.desenhar()
 
     jogador.desenhar()
 

@@ -1,6 +1,33 @@
-import random
+"""
+-------------------------------------------------------------------
+DESCRIÇÃO:
+    Gerencia o sistema de combate por turnos do jogo, incluindo a lógica de
+    batalha, interface gráfica específica e resolução de ações.
+
+RESPONSABILIDADE:
+    1. Fluxo de Combate: Gerenciar turnos entre jogador e inimigo.
+    2. Ações do Jogador: Processar Ataque, Defesa, Uso de Item e Fuga.
+    3. IA do Inimigo: Calcular acertos e danos baseados em RNG.
+    4. Integração com HUD: Delegar alterações de estado (Sede/Cura) para a InterfaceUsuario.
+    5. Renderização: Desenhar o cenário de combate, sprites e feedback visual (mensagens).
+    6. Gatilhos: Determinar probabilidade de início de combate após escavação.
+
+REGRAS DE USO:
+    - Instanciar passando a 'janela' e o objeto 'hud' (InterfaceUsuario).
+    - Chamar 'verificar_e_iniciar_combate(valor_dado)' após ações de risco no mapa.
+    - Chamar 'atualizar(delta_time, mouse)' no loop principal se 'ativo' for True.
+    - Chamar 'desenhar()' após o desenho do mapa/HUD se 'ativo' for True.
+
+NOTAS DE IMPLEMENTAÇÃO:
+    - O combate é modal: quando 'ativo' é True, o jogo deve pausar outras atualizações (exceto HUD).
+    - Não acessa diretamente 'hud.sede' ou 'hud.sol' para escrita; usa métodos como 'aplicar_dano_combate'.
+    - Inimigos ('tempestade', 'serpente') e parâmetros de balanceamento vêm de 'config.py'.
+-------------------------------------------------------------------
+"""
 from PPlay.gameimage import GameImage
 from PPlay.window import Window
+import config
+import random
 
 class SistemaCombate:
     def __init__(self, janela: Window, hud):
@@ -8,16 +35,16 @@ class SistemaCombate:
         self.hud = hud
         self.ativo = False
         
-        self.bg_combate = GameImage("assets/tela combate.png")
-        self.protagonista = GameImage("assets/protagonista1.png")
+        self.bg_combate = GameImage(config.RECURSOS['bg_combate'])
+        self.protagonista = GameImage(config.RECURSOS['protagonista_combate'])
         
-        self.btn_attack = GameImage("assets/botao attack.png")
-        self.btn_defend = GameImage("assets/botao defend.png")
-        self.btn_item = GameImage("assets/botao item.png")
-        self.btn_run = GameImage("assets/botao run.png")
+        self.btn_attack = GameImage(config.RECURSOS['btn_attack'])
+        self.btn_defend = GameImage(config.RECURSOS['btn_defend'])
+        self.btn_item = GameImage(config.RECURSOS['btn_item'])
+        self.btn_run = GameImage(config.RECURSOS['btn_run'])
         
-        self.img_tempestade = GameImage("assets/inimigo tempestade.png")
-        self.img_serpente = GameImage("assets/inimigo serpente.png")
+        self.img_tempestade = GameImage(config.RECURSOS['inimigo_tempestade'])
+        self.img_serpente = GameImage(config.RECURSOS['inimigo_serpente'])
         
         self.inimigo_atual = None
         self.imune_turnos = 0
@@ -26,8 +53,8 @@ class SistemaCombate:
         self.clique_processado = False
         
         self.dados_inimigos = {
-            'tempestade': {'img': self.img_tempestade, 'dano_base': 100},
-            'serpente': {'img': self.img_serpente, 'dano_base': 130}
+            'tempestade': {'img': self.img_tempestade, 'dano_base': config.COMBATE['dano_base_tempestade']},
+            'serpente': {'img': self.img_serpente, 'dano_base': config.COMBATE['dano_base_serpente']}
         }
         
         self._posicionar_elementos()
@@ -67,6 +94,19 @@ class SistemaCombate:
         self.btn_run.x = self.btn_item.x + self.btn_item.width + espacamento
         self.btn_run.y = y_botoes
 
+    def verificar_e_iniciar_combate(self, valor_dado_escavacao):
+        """Verifica se um combate deve ocorrer baseado no resultado da escavação."""
+        chance_combate = (config.GAMEPLAY['dado_escavacao'] - valor_dado_escavacao) * 5
+        
+        if chance_combate > 0:
+            # Só inicia combate se o jogador tiver "vida" (sede) suficiente para sobreviver ao menos um pouco
+            if self.hud.possui_condicao_para_combate():
+                roll_combate = random.randint(1, 100)
+                if roll_combate <= chance_combate:
+                    self.iniciar_combate()
+                    return True
+        return False
+
     def iniciar_combate(self):
         self.ativo = True
         tipo_inimigo = random.choice(['tempestade', 'serpente'])
@@ -74,8 +114,8 @@ class SistemaCombate:
         self.imune_turnos = 0
         
         nome_inimigo = tipo_inimigo.capitalize()
-        self.mensagens = [(f"Uma {nome_inimigo} apareceu...", (255, 255, 255))]
-        self.timer_mensagem = 3.0
+        self.mensagens = [(f"Uma {nome_inimigo} apareceu...", config.CORES['branco'])]
+        self.timer_mensagem = config.COMBATE['timer_mensagem_curto']
         
         self.clique_processado = False
         self.encerrando_combate = False
@@ -123,64 +163,64 @@ class SistemaCombate:
             self.clique_processado = False
 
     def _acao_atacar(self):
-        bonus = 3 if self.hud.tem_item('faca') else 0
+        bonus = config.GAMEPLAY['bonus_combate_faca'] if self.hud.tem_item('faca') else 0
         dado = random.randint(1, 20) + bonus
         self.mensagens = [] 
-        if dado > 18:
-            self.mensagens.append((f"Crítico! Inimigo derrotado!", (255, 215, 0))) # Dourado
-            self.timer_mensagem = 6.0
+        if dado > config.COMBATE['limiar_critico']:
+            self.mensagens.append((f"Crítico! Inimigo derrotado!", config.CORES['dourado'])) # Dourado
+            self.timer_mensagem = config.COMBATE['timer_mensagem_critico']
             self.encerrando_combate = True
             self.timer_encerramento = 3.0 
-        elif dado > 9:
-            self.mensagens.append((f"Sucesso Parcial. Dano INIMIGO reduzido NESTE COMBATE!", (255, 165, 0))) # Laranja
-            self.timer_mensagem = 4.5
+        elif dado > config.COMBATE['limiar_sucesso_parcial']:
+            self.mensagens.append((f"Sucesso Parcial. Dano INIMIGO reduzido NESTE COMBATE!", config.CORES['laranja'])) # Laranja
+            self.timer_mensagem = config.COMBATE['timer_mensagem_padrao']
             self.inimigo_atual['dano_base'] = int(self.inimigo_atual['dano_base'] / 2)
         else:
-            self.mensagens.append((f"Errou o ataque...", (200, 200, 200))) # Cinza
-            self.timer_mensagem = 4.5
+            self.mensagens.append((f"Errou o ataque...", config.CORES['cinza'])) # Cinza
+            self.timer_mensagem = config.COMBATE['timer_mensagem_padrao']
 
     def _acao_defender(self):
-        bonus = 3 if self.hud.tem_item('faca') else 0
+        bonus = config.GAMEPLAY['bonus_combate_faca'] if self.hud.tem_item('faca') else 0
         dado = random.randint(1, 20) + bonus
         self.mensagens = []
-        if dado > 11:
-            self.imune_turnos = 2
-            self.mensagens.append((f"Defesa Perfeita! Imune por 2 turnos!", (0, 255, 0))) # Verde
+        if dado > config.COMBATE['limiar_defesa']:
+            self.imune_turnos = config.COMBATE['turnos_imunidade']
+            self.mensagens.append((f"Defesa Perfeita! Imune por {config.COMBATE['turnos_imunidade']} turnos!", config.CORES['verde'])) # Verde
         else:
-            self.mensagens.append((f"Falha na defesa...", (200, 200, 200))) # Cinza
-        self.timer_mensagem = 4.5
+            self.mensagens.append((f"Falha na defesa...", config.CORES['cinza'])) # Cinza
+        self.timer_mensagem = config.COMBATE['timer_mensagem_padrao']
 
     def _acao_item(self):
         self.mensagens = []
         if not self.hud.tem_item('agua'):
-            self.mensagens.append(("Não tem agua...", (255, 0, 0))) # Vermelho
-            self.timer_mensagem = 6.0
+            self.mensagens.append(("Não tem agua...", config.CORES['vermelho'])) # Vermelho
+            self.timer_mensagem = config.COMBATE['timer_mensagem_critico']
             return False 
         
         dado = random.randint(1, 20)
         if dado > 9:
-            self.hud.definir_valores(sede=max(0, self.hud.sede - 200))
+            self.hud.aplicar_cura_combate(config.GAMEPLAY['recuperacao_sede_beber'])
             self.hud.remover_item('agua')
-            self.mensagens.append((f"Bebeu água!", (0, 191, 255))) # Azul DeepSkyBlue
+            self.mensagens.append((f"Bebeu água!", config.CORES['azul_deepskyblue'])) # Azul DeepSkyBlue
         else:
-            self.mensagens.append((f"Derrubou a água...", (255, 100, 100))) # Vermelho claro
+            self.mensagens.append((f"Derrubou a água...", config.CORES['vermelho_agua'])) # Vermelho claro
             self.hud.remover_item('agua')
         
-        self.timer_mensagem = 4.5
+        self.timer_mensagem = config.COMBATE['timer_mensagem_padrao']
         return True
 
     def _acao_fugir(self):
-        bonus = 3 if self.hud.tem_item('faca') else 0
+        bonus = config.GAMEPLAY['bonus_combate_faca'] if self.hud.tem_item('faca') else 0
         dado = random.randint(1, 20) + bonus
         self.mensagens = []
-        if dado > 14:
-            self.mensagens.append((f"Fugiu com sucesso!", (255, 255, 0))) # Amarelo
-            self.timer_mensagem = 6.0
+        if dado > config.COMBATE['limiar_fuga']:
+            self.mensagens.append((f"Fugiu com sucesso!", config.CORES['amarelo'])) # Amarelo
+            self.timer_mensagem = config.COMBATE['timer_mensagem_critico']
             self.encerrando_combate = True
             self.timer_encerramento = 2.0
         else:
-            self.mensagens.append((f"Falha ao fugir...", (200, 200, 200))) # Cinza
-            self.timer_mensagem = 4.5
+            self.mensagens.append((f"Falha ao fugir...", config.CORES['cinza'])) # Cinza
+            self.timer_mensagem = config.COMBATE['timer_mensagem_padrao']
 
     def _turno_inimigo(self):
         if self.imune_turnos > 0:
@@ -198,17 +238,17 @@ class SistemaCombate:
             
             dano_final = int(dano_base * (porcentagem / 100.0))
             
-            self.hud.definir_valores(sede=self.hud.sede + dano_final)
+            self.hud.aplicar_dano_combate(dano_final)
             
-            if self.hud.sede >= 1000:
+            if self.hud.verificar_estado_derrota():
                 self.encerrando_combate = True
                 self.timer_encerramento = 3.0
             
-            self.mensagens.append((f"| Inimigo atacou! +{dano_final} Sede", (255, 50, 50))) # Vermelho
-            self.timer_mensagem = 6.0
+            self.mensagens.append((f"| Inimigo atacou! +{dano_final} Sede", config.CORES['vermelho_claro'])) # Vermelho
+            self.timer_mensagem = config.COMBATE['timer_mensagem_critico']
         else:
-            self.mensagens.append((f"| Inimigo errou!", (150, 255, 150))) # Verde claro
-            self.timer_mensagem = 6.0
+            self.mensagens.append((f"| Inimigo errou!", config.CORES['verde_claro'])) # Verde claro
+            self.timer_mensagem = config.COMBATE['timer_mensagem_critico']
 
     def desenhar(self):
         if not self.ativo:
@@ -232,7 +272,7 @@ class SistemaCombate:
                     texto, 
                     x_atual, 
                     y_texto, 
-                    size=10, 
+                    size=config.UI['tamanho_fonte_combate'], 
                     color=cor, 
                     font_name="Arial", 
                     bold=True

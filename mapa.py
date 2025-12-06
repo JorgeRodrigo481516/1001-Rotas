@@ -1,21 +1,25 @@
 """
 -------------------------------------------------------------------
 DESCRIÇÃO:
-    Gerencia a construção do cenário, tiles (azulejos) e mecânica de escavação.
+    Gerencia a construção do cenário, renderização dos tiles (azulejos) 
+    e mecânicas de interação com o terreno (escavação e investigação).
 
 RESPONSABILIDADE:
-    1. Gerar o grid de azulejos baseado na configuração.
-    2. Gerenciar sobreposições (overlays) nos tiles.
-    3. Controlar a lógica e temporização da escavação.
-    4. Determinar se itens são encontrados ao escavar.
+    1. Geração: Criar o grid de azulejos e distribuir itens (água, pá, faca) aleatoriamente.
+    2. Renderização: Desenhar o cenário e sobreposições (overlays) visuais.
+    3. Escavação: Controlar a lógica, temporização e sucesso da busca por itens.
+    4. Investigação: Executar a mecânica de radar, calculando probabilidades e 
+       gerando mensagens de feedback sobre itens próximos.
 
 REGRAS DE USO:
-    - 'construir()' deve ser chamado após inicialização.
-    - Depende de recursos definidos em config.py.
+    - 'construir()' deve ser chamado uma única vez após a inicialização.
+    - 'atualizar_escavacao()' e 'atualizar_investigacao()' devem ser chamados a cada frame.
+    - 'desenhar()' deve ser chamado no loop de renderização para exibir o mapa.
 
 NOTAS DE IMPLEMENTAÇÃO:
     - Usa sistema de grid (coluna, linha) mapeado para pixels.
-    - Escavação é assíncrona (baseada em tempo).
+    - A investigação implementa um sistema de "alucinação" onde falhas no teste de 
+      probabilidade podem gerar informações falsas.
 -------------------------------------------------------------------
 """
 from PPlay.sprite import Sprite
@@ -61,7 +65,7 @@ class Mapa:
         self._escavando = False
         self._alvo_escavacao = (None, None)
         self._temporizador_escavacao = 0.0
-        self._duracao_escavacao = 2.0
+        self._duracao_escavacao = config.GAMEPLAY['duracao_escavacao']
         
         self._investigando = False
         self._fila_mensagens = []
@@ -114,9 +118,9 @@ class Mapa:
                 self.azulejos_por_coordenada[(coluna, linha)] = novo_azulejo
 
         total_azulejos = len(self.azulejos)
-        qtd_agua = int(total_azulejos * 0.35)
-        qtd_pa = int(total_azulejos * 0.05)
-        qtd_faca = int(total_azulejos * 0.05)
+        qtd_agua = int(total_azulejos * config.GAMEPLAY['distribuicao_itens']['agua'])
+        qtd_pa = int(total_azulejos * config.GAMEPLAY['distribuicao_itens']['pa'])
+        qtd_faca = int(total_azulejos * config.GAMEPLAY['distribuicao_itens']['faca'])
         
         itens = ['agua'] * qtd_agua + ['pa'] * qtd_pa + ['faca'] * qtd_faca + [None] * (total_azulejos - qtd_agua - qtd_pa - qtd_faca)
         random.shuffle(itens)
@@ -153,7 +157,7 @@ class Mapa:
         self._duracao_atual = self._duracao_escavacao / 2.0 if tem_pa else self._duracao_escavacao
         return True
 
-    def atualizar_escavacao(self, delta_tempo, bonus_dado=0, tem_pa=False, tem_faca=False):
+    def atualizar_escavacao(self, delta_tempo, tem_pa=False, tem_faca=False):
         if not self._escavando:
             return (False, False, None, 0)
         self._temporizador_escavacao += delta_tempo
@@ -177,8 +181,9 @@ class Mapa:
              self._temporizador_escavacao = 0.0
              return (True, False, 'faca_duplicada', 0)
         
-        dado = random.randint(0, 20)
-        sucesso_escavacao = (dado + bonus_dado) > 12
+        bonus_dado = config.GAMEPLAY['bonus_escavacao_pa'] if tem_pa else 0
+        dado = random.randint(0, config.GAMEPLAY['dado_escavacao'])
+        sucesso_escavacao = (dado + bonus_dado) > config.GAMEPLAY['dificuldade_escavacao']
         
         adicionado = False
         if sucesso_escavacao:
@@ -225,31 +230,11 @@ class Mapa:
 
         tempo_acumulado = config.DELAY_INICIAL_INVESTIGACAO
         
-        possiveis_itens = ['agua', 'pa', 'faca', None]
-
         for dx, dy, nome_pos, dificuldade in grid_info:
             col = coluna_centro + dx
             lin = linha_centro + dy
             
-            azulejo = self.obter_azulejo_grade(col, lin)
-            item_real = azulejo.item if azulejo else None
-            
-            dado = random.randint(1, 20)
-            sucesso = dado > dificuldade
-            
-            item_mostrado = item_real
-            if not sucesso:
-                opcoes_erradas = [i for i in possiveis_itens if i != item_real]
-                if not opcoes_erradas:
-                    opcoes_erradas = [None]
-                item_mostrado = random.choice(opcoes_erradas)
-            
-            nome_item = item_mostrado if item_mostrado else "Nada"
-            nome_item = nome_item.capitalize()
-            
-            chance = int(((21 - dificuldade) / 20) * 100)
-            
-            mensagem = f"{nome_pos}: {nome_item} {chance}%"
+            mensagem = self._processar_celula_investigacao(col, lin, nome_pos, dificuldade)
             
             inicio = tempo_acumulado
             fim = tempo_acumulado + config.TEMPO_MENSAGEM_INVESTIGACAO
@@ -262,6 +247,28 @@ class Mapa:
         
         self._duracao_total_investigacao = tempo_acumulado
         return True
+
+    def _processar_celula_investigacao(self, col, lin, nome_pos, dificuldade):
+        azulejo = self.obter_azulejo_grade(col, lin)
+        item_real = azulejo.item if azulejo else None
+        
+        dado = random.randint(1, 20)
+        sucesso = dado > dificuldade
+        
+        item_mostrado = item_real
+        if not sucesso:
+            possiveis_itens = ['agua', 'pa', 'faca', None]
+            opcoes_erradas = [i for i in possiveis_itens if i != item_real]
+            if not opcoes_erradas:
+                opcoes_erradas = [None]
+            item_mostrado = random.choice(opcoes_erradas)
+        
+        nome_item = item_mostrado if item_mostrado else "Nada"
+        nome_item = nome_item.capitalize()
+        
+        chance = int(((21 - dificuldade) / 20) * 100)
+        
+        return f"{nome_pos}: {nome_item} {chance}%"
 
     def atualizar_investigacao(self, delta_tempo):
         if not self._investigando:
@@ -296,3 +303,7 @@ class Mapa:
         if not self._investigando:
             return 0.0
         return min(1.0, self._tempo_investigacao / max(1e-6, self._duracao_total_investigacao))
+
+    def desenhar(self):
+        for azulejo in self.azulejos:
+            azulejo.desenhar()
