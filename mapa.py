@@ -10,11 +10,14 @@ RESPONSABILIDADE:
     3. Escavação: Controlar a lógica, temporização e sucesso da busca por itens.
     4. Investigação: Executar a mecânica de radar, calculando probabilidades e 
        gerando mensagens de feedback sobre itens próximos.
+    5. Persistência: Permitir resetar o estado visual (escavações) mantendo a 
+       distribuição de itens para mecânicas de "conhecimento acumulado" nos reinicios.
 
 REGRAS DE USO:
     - 'construir()' deve ser chamado uma única vez após a inicialização.
     - 'atualizar_escavacao()' e 'atualizar_investigacao()' devem ser chamados a cada frame.
     - 'desenhar()' deve ser chamado no loop de renderização para exibir o mapa.
+    - 'resetar_estado()' deve ser chamado ao reiniciar o jogo para limpar o mapa sem perder a geração.
 
 NOTAS DE IMPLEMENTAÇÃO:
     - Usa sistema de grid (coluna, linha) mapeado para pixels.
@@ -307,3 +310,15 @@ class Mapa:
     def desenhar(self):
         for azulejo in self.azulejos:
             azulejo.desenhar()
+
+    def resetar_estado(self):
+        for azulejo in self.azulejos:
+            azulejo.sprite_sobreposicao = None
+        
+        self._escavando = False
+        self._alvo_escavacao = (None, None)
+        self._temporizador_escavacao = 0.0
+        
+        self._investigando = False
+        self._fila_mensagens = []
+        self._tempo_investigacao = 0.0

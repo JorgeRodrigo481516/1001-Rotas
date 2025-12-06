@@ -43,8 +43,11 @@ combate = None
 def iniciar_jogo():
     global mapa, interface, jogador, combate
     
-    mapa = Mapa(janela)
-    mapa.construir()
+    if mapa is None:
+        mapa = Mapa(janela)
+        mapa.construir()
+    else:
+        mapa.resetar_estado()
 
     interface = InterfaceUsuario(janela)
     combate = SistemaCombate(janela, interface)
