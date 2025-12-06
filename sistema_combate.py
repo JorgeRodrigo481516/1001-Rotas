@@ -120,7 +120,8 @@ class SistemaCombate:
             self.clique_processado = False
 
     def _acao_atacar(self):
-        dado = random.randint(1, 20)
+        bonus = 3 if self.hud.tem_item('faca') else 0
+        dado = random.randint(1, 20) + bonus
         self.mensagens = [] 
         if dado > 18:
             self.mensagens.append((f"Crítico! Inimigo derrotado!", (255, 215, 0))) # Dourado
@@ -136,7 +137,8 @@ class SistemaCombate:
             self.timer_mensagem = 4.5
 
     def _acao_defender(self):
-        dado = random.randint(1, 20)
+        bonus = 3 if self.hud.tem_item('faca') else 0
+        dado = random.randint(1, 20) + bonus
         self.mensagens = []
         if dado > 11:
             self.imune_turnos = 2
@@ -165,7 +167,8 @@ class SistemaCombate:
         return True
 
     def _acao_fugir(self):
-        dado = random.randint(1, 20)
+        bonus = 3 if self.hud.tem_item('faca') else 0
+        dado = random.randint(1, 20) + bonus
         self.mensagens = []
         if dado > 14:
             self.mensagens.append((f"Fugiu com sucesso!", (255, 255, 0))) # Amarelo

@@ -88,13 +88,14 @@ while True:
             jogador.atualizar(teclado, delta_segundos)
 
             tem_pa = hud.tem_item('pa')
+            tem_faca = hud.tem_item('faca')
             bonus_escavacao = 3 if tem_pa else 0
 
             if teclado.key_pressed("SPACE") and not jogador.tem_mensagem_cabeca():
                 coluna, linha = jogador.obter_coordenadas_grade(mapa.largura_tile, mapa.altura_tile)
                 mapa.iniciar_escavacao(coluna, linha, tem_pa=tem_pa)
             
-            terminou, overlay_adicionada, item_encontrado, valor_dado = mapa.atualizar_escavacao(delta_segundos, bonus_dado=bonus_escavacao, tem_pa=tem_pa)
+            terminou, overlay_adicionada, item_encontrado, valor_dado = mapa.atualizar_escavacao(delta_segundos, bonus_dado=bonus_escavacao, tem_pa=tem_pa, tem_faca=tem_faca)
             if terminou:
                 chance_combate = (20 - valor_dado) * 5
                 if chance_combate > 0:
@@ -105,6 +106,8 @@ while True:
 
                 if item_encontrado == 'pa_duplicada':
                      jogador.exibir_mensagem_cabeca("Só posso carregar uma pá...", duration=3.0)
+                elif item_encontrado == 'faca_duplicada':
+                     jogador.exibir_mensagem_cabeca("Só posso carregar uma faca...", duration=3.0)
                 else:
                     hud.definir_valores(sede=hud.sede + 100)
                     hud.exibir_mensagem('sede', '+100', duration=1.5)
@@ -114,6 +117,8 @@ while True:
                             hud.adicionar_item(config.RECURSOS.get('agua'), 'agua')
                         elif item_encontrado == 'pa':
                             hud.adicionar_item(config.RECURSOS.get('pa'), 'pa')
+                        elif item_encontrado == 'faca':
+                            hud.adicionar_item(config.RECURSOS.get('faca'), 'faca')
                     else:
                         jogador.exibir_mensagem_cabeca("Não consegui...", duration=2.0)
 

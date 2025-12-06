@@ -111,8 +111,9 @@ class Mapa:
         total_azulejos = len(self.azulejos)
         qtd_agua = int(total_azulejos * 0.35)
         qtd_pa = int(total_azulejos * 0.05)
+        qtd_faca = int(total_azulejos * 0.05)
         
-        itens = ['agua'] * qtd_agua + ['pa'] * qtd_pa + [None] * (total_azulejos - qtd_agua - qtd_pa)
+        itens = ['agua'] * qtd_agua + ['pa'] * qtd_pa + ['faca'] * qtd_faca + [None] * (total_azulejos - qtd_agua - qtd_pa - qtd_faca)
         random.shuffle(itens)
         random.shuffle(itens)
         
@@ -147,7 +148,7 @@ class Mapa:
         self._duracao_atual = self._duracao_escavacao / 2.0 if tem_pa else self._duracao_escavacao
         return True
 
-    def atualizar_escavacao(self, delta_tempo, bonus_dado=0, tem_pa=False):
+    def atualizar_escavacao(self, delta_tempo, bonus_dado=0, tem_pa=False, tem_faca=False):
         if not self._escavando:
             return (False, False, None, 0)
         self._temporizador_escavacao += delta_tempo
@@ -164,6 +165,12 @@ class Mapa:
              self._alvo_escavacao = (None, None)
              self._temporizador_escavacao = 0.0
              return (True, False, 'pa_duplicada', 0)
+
+        if azulejo and azulejo.item == 'faca' and tem_faca:
+             self._escavando = False
+             self._alvo_escavacao = (None, None)
+             self._temporizador_escavacao = 0.0
+             return (True, False, 'faca_duplicada', 0)
         
         dado = random.randint(0, 20)
         sucesso_escavacao = (dado + bonus_dado) > 12

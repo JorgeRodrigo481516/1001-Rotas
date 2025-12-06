@@ -47,6 +47,7 @@ RECURSOS = {
     'overlay_default': "assets/escavação da superficie do deserto.png",
     'agua': "assets/agua.png",
     'pa': "assets/pa.png",
+    'faca': "assets/faca.png",
 }
 
 PREENCHIMENTOS_BARRA_HUD = [
