@@ -9,8 +9,8 @@ RESPONSABILIDADE:
     3. Estado Visual: Controlar a visibilidade do popup (exibir/ocultar).
 
 REGRAS DE USO:
-    - 'exibir_morte()' deve ser chamado quando a condição de derrota for confirmada externamente.
-    - 'verificar_clique(mouse)' deve ser chamado no loop para processar o reinício.
+    - 'aguardar_clique_apos_morte()' deve ser chamado quando a condição de derrota for confirmada externamente.
+    - 'verificar_clique_reiniciar(mouse)' deve ser chamado no loop para processar o reinício.
     - O loop principal deve verificar 'esta_visivel' para pausar a simulação do jogo.
 
 NOTAS DE IMPLEMENTAÇÃO:
@@ -20,49 +20,35 @@ NOTAS DE IMPLEMENTAÇÃO:
 """
 from PPlay.window import Window
 from PPlay.gameimage import GameImage
-import time
 import config
 
-class PopupFimDeJogo:
+class JanelaFimDeJogo:
     def __init__(self, janela: Window):
-        self.janela = janela
-        self.esta_visivel = False
-        self.tempo_inicio_morte = 0
+        self.esta_visivel, self.tempo_decorrido_morte = False, 0.0
         
         self.fundo_morte = GameImage(config.RECURSOS['fundo_morte'])
-        self.botao_reiniciar = GameImage(config.RECURSOS['botao_reiniciar'])
-        
-        self._atualizar_posicao()
+        self.fundo_morte.x = (janela.width - self.fundo_morte.width) / 2
+        self.fundo_morte.y = (janela.height - self.fundo_morte.height) / 2
 
-    def _atualizar_posicao(self):
-        self.fundo_morte.x = (self.janela.width - self.fundo_morte.width) / 2
-        self.fundo_morte.y = (self.janela.height - self.fundo_morte.height) / 2
-        
-        self.botao_reiniciar.x = (self.janela.width - self.botao_reiniciar.width) / 2
+        self.botao_reiniciar = GameImage(config.RECURSOS['botao_reiniciar'])
+        self.botao_reiniciar.x = (janela.width - self.botao_reiniciar.width) / 2
         self.botao_reiniciar.y = self.fundo_morte.y + self.fundo_morte.height - config.INTERFACE_USUARIO['deslocamento_y_reiniciar']
 
-    def exibir_morte(self):
-        self.esta_visivel = True
-        self.tempo_inicio_morte = time.time()
+    def aguardar_clique_apos_morte(self):
+        self.esta_visivel, self.tempo_decorrido_morte = True, 0.0
 
     def ocultar(self):
         self.esta_visivel = False
 
-    def verificar_clique(self, mouse):
-        if not self.esta_visivel:
-            return False
+    def atualizar(self, tempo_decorrido):
+        self.tempo_decorrido_morte += tempo_decorrido
 
-        if time.time() - self.tempo_inicio_morte < config.INTERFACE_USUARIO['delay_clique_morte']:
-            return False
-            
-        if mouse.is_button_pressed(1):
-            if mouse.is_over_object(self.botao_reiniciar):
-                return True
-        return False
+    def verificar_clique_reiniciar(self, mouse):
+        return (self.tempo_decorrido_morte >= config.INTERFACE_USUARIO['atraso_clique_morte'] and 
+                mouse.is_button_pressed(1) and 
+                mouse.is_over_object(self.botao_reiniciar))
 
     def desenhar(self):
-        if not self.esta_visivel:
-            return
-
-        self.fundo_morte.draw()
-        self.botao_reiniciar.draw()
+        if self.esta_visivel:
+            self.fundo_morte.draw()
+            self.botao_reiniciar.draw()

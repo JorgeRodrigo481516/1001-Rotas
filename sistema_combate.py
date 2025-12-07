@@ -15,7 +15,7 @@ RESPONSABILIDADE:
 REGRAS DE USO:
     - Instanciar passando a 'janela' e o objeto 'interface' (InterfaceUsuario).
     - Chamar 'verificar_e_iniciar_combate(valor_dado)' após ações de risco no mapa.
-    - Chamar 'atualizar(delta_time, mouse)' no loop principal se 'ativo' for True.
+    - Chamar 'atualizar(tempo_decorrido, mouse)' no loop principal se 'ativo' for True.
     - Chamar 'desenhar()' após o desenho do mapa/HUD se 'ativo' for True.
 
 NOTAS DE IMPLEMENTAÇÃO:
@@ -33,7 +33,7 @@ class SistemaCombate:
     def __init__(self, janela: Window, interface):
         self.janela = janela
         self.interface = interface
-        self.ativo = False
+        self.combate_ativo = False
         
         self.fundo_combate = GameImage(config.RECURSOS['fundo_combate'])
         self.protagonista = GameImage(config.RECURSOS['protagonista_combate'])
@@ -45,16 +45,17 @@ class SistemaCombate:
         
         self.imagem_tempestade = GameImage(config.RECURSOS['inimigo_tempestade'])
         self.imagem_serpente = GameImage(config.RECURSOS['inimigo_serpente'])
+        self.imagem_golem = GameImage(config.RECURSOS['inimigo_golem'])
         
         self.inimigo_atual = None
         self.turnos_imunidade = 0
-        self.mensagem_combate = ""
         self.temporizador_mensagem = 0
         self.clique_processado = False
         
         self.dados_inimigos = {
             'tempestade': {'imagem': self.imagem_tempestade, 'dano_base': config.COMBATE['dano_base_tempestade']},
-            'serpente': {'imagem': self.imagem_serpente, 'dano_base': config.COMBATE['dano_base_serpente']}
+            'serpente': {'imagem': self.imagem_serpente, 'dano_base': config.COMBATE['dano_base_serpente']},
+            'golem': {'imagem': self.imagem_golem, 'dano_base': config.COMBATE['dano_base_golem']}
         }
         
         self._posicionar_elementos()
@@ -74,6 +75,9 @@ class SistemaCombate:
         
         self.imagem_serpente.x = centro_x + 50
         self.imagem_serpente.y = centro_y - self.imagem_serpente.height / 2 - 30
+
+        self.imagem_golem.x = centro_x + 50
+        self.imagem_golem.y = centro_y - self.imagem_golem.height / 2 - 30
         
         espacamento = 20
         largura_total_botoes = (self.botao_atacar.width + self.botao_defender.width + 
@@ -94,82 +98,102 @@ class SistemaCombate:
         self.botao_fugir.x = self.botao_item.x + self.botao_item.width + espacamento
         self.botao_fugir.y = y_botoes
 
-    def verificar_e_iniciar_combate(self, valor_dado_escavacao):
-        chance_combate = (config.JOGABILIDADE['dado_escavacao'] - valor_dado_escavacao) * 5
+    def verificar_e_iniciar_combate(self, valor_dado_escavacao, tipo_mapa='DESERTO'):
+        chance_combate = (config.JOGABILIDADE['dado_escavacao'] - valor_dado_escavacao) * config.COMBATE['multiplicador_chance_combate']
         
         if chance_combate > 0:
             if self.interface.possui_condicao_para_combate():
-                roll_combate = random.randint(1, 100)
-                if roll_combate <= chance_combate:
-                    self.iniciar_combate()
+                rolagem_combate = random.randint(1, 100)
+                if rolagem_combate <= chance_combate:
+                    self.iniciar_combate(tipo_mapa)
                     return True
         return False
 
-    def iniciar_combate(self):
-        self.ativo = True
-        tipo_inimigo = random.choice(['tempestade', 'serpente'])
+    def iniciar_combate(self, tipo_mapa='DESERTO', nome_inimigo=None):
+        self.combate_ativo = True
+        
+        if nome_inimigo:
+            tipo_inimigo = nome_inimigo
+        elif tipo_mapa == 'CAVERNA':
+            tipo_inimigo = 'serpente'
+        else:
+            tipo_inimigo = random.choice(['tempestade', 'serpente'])
+            
         self.inimigo_atual = self.dados_inimigos[tipo_inimigo].copy()
+        self.inimigo_atual['nome'] = tipo_inimigo
         self.turnos_imunidade = 0
         
-        nome_inimigo = tipo_inimigo.capitalize()
-        self.mensagens = [(f"Uma {nome_inimigo} apareceu...", config.CORES['branco'])]
+        nome_exibicao = tipo_inimigo.capitalize()
+        self.mensagens = [(f"Um {nome_exibicao} apareceu...", config.CORES['branco'])]
         self.temporizador_mensagem = config.COMBATE['tempo_mensagem_curto']
+        # ---------------------------------------------------------------
+        print(f"Apareceu um inimigo! {nome_exibicao}")
+        # ---------------------------------------------------------------
         
         self.clique_processado = False
         self.encerrando_combate = False
-        self.timer_encerramento = 0.0
+        self.temporizador_encerramento = 0.0
 
-    def atualizar(self, delta_time, mouse):
-        if not self.ativo:
+    def atualizar(self, tempo_decorrido, dispositivo_mouse):
+        if not self.combate_ativo:
             return
 
         if self.temporizador_mensagem > 0:
-            self.temporizador_mensagem -= delta_time
+            self.temporizador_mensagem -= tempo_decorrido
             if self.temporizador_mensagem <= 0:
                 self.mensagens = []
 
         if self.encerrando_combate:
-            self.timer_encerramento -= delta_time
-            if self.timer_encerramento <= 0:
-                self.ativo = False
+            self.temporizador_encerramento -= tempo_decorrido
+            if self.temporizador_encerramento <= 0:
+                self.combate_ativo = False
                 self.encerrando_combate = False
             return
 
-        if mouse.is_button_pressed(1):
+        if dispositivo_mouse.is_button_pressed(1):
             if not self.clique_processado:
                 self.clique_processado = True
                 acao_realizada = False
                 
-                if mouse.is_over_object(self.botao_atacar):
+                if dispositivo_mouse.is_over_object(self.botao_atacar):
                     self._acao_atacar()
                     acao_realizada = True
-                elif mouse.is_over_object(self.botao_defender):
+                elif dispositivo_mouse.is_over_object(self.botao_defender):
                     self._acao_defender()
                     acao_realizada = True
-                elif mouse.is_over_object(self.botao_item):
+                elif dispositivo_mouse.is_over_object(self.botao_item):
                     if self._acao_item():
                         acao_realizada = True
-                elif mouse.is_over_object(self.botao_fugir):
+                elif dispositivo_mouse.is_over_object(self.botao_fugir):
                     self._acao_fugir()
-                    if not self.ativo:
+                    if not self.combate_ativo:
                         return
                     acao_realizada = True
                 
-                if acao_realizada and self.ativo:
+                if acao_realizada and self.combate_ativo:
                     self._turno_inimigo()
         else:
             self.clique_processado = False
 
+    def _calcular_resultado_dado(self, usar_faca=True):
+        bonus_faca_combate = config.JOGABILIDADE['bonus_combate_faca'] if (usar_faca and self.interface.tem_item('faca')) else 0
+        penalidade_por_inimigo_golem = config.COMBATE['penalidade_golem'] if self.inimigo_atual.get('nome') == 'golem' else 0
+        
+        valor_sorteado_dado = random.randint(1, 20)
+        total = valor_sorteado_dado + bonus_faca_combate + penalidade_por_inimigo_golem
+        
+        return total
+
     def _acao_atacar(self):
-        bonus = config.JOGABILIDADE['bonus_combate_faca'] if self.interface.tem_item('faca') else 0
-        dado = random.randint(1, 20) + bonus
-        self.mensagens = [] 
-        if dado > config.COMBATE['limiar_critico']:
+        resultado_lancamento_dado = self._calcular_resultado_dado(usar_faca=True)
+
+        self.mensagens = []
+        if resultado_lancamento_dado > config.COMBATE['limiar_critico']:
             self.mensagens.append((f"Crítico! Inimigo derrotado!", config.CORES['dourado'])) # Dourado
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_critico']
             self.encerrando_combate = True
-            self.timer_encerramento = 3.0 
-        elif dado > config.COMBATE['limiar_sucesso_parcial']:
+            self.temporizador_encerramento = 3.0 
+        elif resultado_lancamento_dado > config.COMBATE['limiar_sucesso_parcial']:
             self.mensagens.append((f"Sucesso Parcial. Dano INIMIGO reduzido NESTE COMBATE!", config.CORES['laranja'])) # Laranja
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_padrao']
             self.inimigo_atual['dano_base'] = int(self.inimigo_atual['dano_base'] / 2)
@@ -178,10 +202,10 @@ class SistemaCombate:
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_padrao']
 
     def _acao_defender(self):
-        bonus = config.JOGABILIDADE['bonus_combate_faca'] if self.interface.tem_item('faca') else 0
-        dado = random.randint(1, 20) + bonus
+        resultado_lancamento_dado = self._calcular_resultado_dado(usar_faca=True)
+
         self.mensagens = []
-        if dado > config.COMBATE['limiar_defesa']:
+        if resultado_lancamento_dado > config.COMBATE['limiar_defesa']:
             self.turnos_imunidade = config.COMBATE['turnos_imunidade']
             self.mensagens.append((f"Defesa Perfeita! Imune por {config.COMBATE['turnos_imunidade']} turnos!", config.CORES['verde'])) # Verde
         else:
@@ -195,11 +219,12 @@ class SistemaCombate:
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_critico']
             return False 
         
-        dado = random.randint(1, 20)
-        if dado > 9:
+        valor_sorteado_dado = self._calcular_resultado_dado(usar_faca=False)
+
+        if valor_sorteado_dado > config.COMBATE['limiar_sucesso_item']:
             self.interface.aplicar_cura_combate(config.JOGABILIDADE['recuperacao_sede_beber'])
             self.interface.remover_item('agua')
-            self.mensagens.append((f"Bebeu água!", config.CORES['azul_deepskyblue'])) # Azul DeepSkyBlue
+            self.mensagens.append((f"Bebeu água!", config.CORES['azul_ceu_profundo'])) # Azul DeepSkyBlue
         else:
             self.mensagens.append((f"Derrubou a água...", config.CORES['vermelho_agua'])) # Vermelho claro
             self.interface.remover_item('agua')
@@ -208,14 +233,14 @@ class SistemaCombate:
         return True
 
     def _acao_fugir(self):
-        bonus = config.JOGABILIDADE['bonus_combate_faca'] if self.interface.tem_item('faca') else 0
-        dado = random.randint(1, 20) + bonus
+        resultado_lancamento_dado = self._calcular_resultado_dado(usar_faca=True)
+
         self.mensagens = []
-        if dado > config.COMBATE['limiar_fuga']:
+        if resultado_lancamento_dado > config.COMBATE['limiar_fuga']:
             self.mensagens.append((f"Fugiu com sucesso!", config.CORES['amarelo'])) # Amarelo
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_critico']
             self.encerrando_combate = True
-            self.timer_encerramento = 2.0
+            self.temporizador_encerramento = 2.0
         else:
             self.mensagens.append((f"Falha ao fugir...", config.CORES['cinza'])) # Cinza
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_padrao']
@@ -225,12 +250,12 @@ class SistemaCombate:
             self.turnos_imunidade -= 1
             return 
 
-        dado = random.randint(1, 20)
+        valor_dado_rolado = random.randint(1, 20)
         
-        if dado >= 10:
-            porcentagem = (dado - 9) * 10
-            if dado == 20:
-                porcentagem = 200
+        if valor_dado_rolado >= config.COMBATE['limiar_acerto_inimigo']:
+            porcentagem = (valor_dado_rolado - (config.COMBATE['limiar_acerto_inimigo'] - 1)) * 10
+            if valor_dado_rolado == 20:
+                porcentagem = config.COMBATE['multiplicador_critico_inimigo']
             
             dano_base = self.inimigo_atual['dano_base']
             
@@ -238,9 +263,9 @@ class SistemaCombate:
             
             self.interface.aplicar_dano_combate(dano_final)
             
-            if self.interface.verificar_estado_derrota():
+            if self.interface.verificar_se_jogador_morreu():
                 self.encerrando_combate = True
-                self.timer_encerramento = 3.0
+                self.temporizador_encerramento = 3.0
             
             self.mensagens.append((f"| Inimigo atacou! +{dano_final} Sede", config.CORES['vermelho_claro'])) # Vermelho
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_critico']
@@ -249,7 +274,7 @@ class SistemaCombate:
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_critico']
 
     def desenhar(self):
-        if not self.ativo:
+        if not self.combate_ativo:
             return
 
         self.fundo_combate.draw()
