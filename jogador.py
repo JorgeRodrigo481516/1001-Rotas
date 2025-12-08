@@ -69,6 +69,12 @@ class Jogador:
         self._ativando_runa = False
         self._temporizador_ativacao = 0.0
         
+        self._tempo_parado = 0.0
+        self._tempo_para_ativar_foco = 0.5
+        
+        self.sistema_foco_ativo = True
+        self.tecla_f_pressionada = False
+
         self.mecanicas_caverna = None
 
     def atualizar(self, teclado, tempo_decorrido):
@@ -149,9 +155,41 @@ class Jogador:
         self.posicao_pixel_x = max(min_x, min(self.posicao_pixel_x, max_x))
         self.posicao_pixel_y = max(min_y, min(self.posicao_pixel_y, max_y))
 
+        # Lógica de foco com atraso
+        if self.sistema_foco_ativo:
+            if esta_movendo:
+                self._tempo_parado = 0.0
+                if self.mapa:
+                    self.mapa.remover_foco()
+            else:
+                self._tempo_parado += tempo_decorrido
+                if self._tempo_parado >= self._tempo_para_ativar_foco:
+                    try:
+                        coluna_foco, linha_foco = self.obter_coordenadas_grade(self.mapa.largura_quadriculo, self.mapa.altura_quadriculo)
+                        self.mapa.atualizar_foco(coluna_foco, linha_foco)
+                    except:
+                        pass
+                else:
+                    if self.mapa:
+                        self.mapa.remover_foco()
+        else:
+            self._tempo_parado = 0.0
+            if self.mapa:
+                self.mapa.remover_foco()
+
     def processar_comandos(self, teclado):
         if self.tem_mensagem_cabeca() or self._esta_em_acao():
             return
+
+        # Toggle do sistema de foco
+        if teclado.key_pressed("F"):
+            if not self.tecla_f_pressionada:
+                self.sistema_foco_ativo = not self.sistema_foco_ativo
+                self.tecla_f_pressionada = True
+                estado = "ATIVADO" if self.sistema_foco_ativo else "DESATIVADO"
+                print(f"Sistema de foco: {estado}")
+        else:
+            self.tecla_f_pressionada = False
 
         if teclado.key_pressed("X"):
              if getattr(self.mapa, 'tipo', 'DESERTO') != 'CAVERNA':

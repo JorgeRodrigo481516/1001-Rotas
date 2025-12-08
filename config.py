@@ -54,6 +54,7 @@ RECURSOS = {
     'inimigo_golem': "assets/inimigo golem.png",
     'fundo_morte': "assets/tela morte.png",
     'botao_reiniciar': "assets/botao restart.png",
+    'foco': "assets/foco.png",
 }
 
 

@@ -43,6 +43,7 @@ class Quadriculo:
         self.indice_linha = indice_linha
         self.indice_variacao_terreno = indice_variacao_terreno
         self.imagem_sobreposicao = None
+        self.imagem_foco = None
         self.item = None
         self.eh_passagem = False
 
@@ -50,9 +51,20 @@ class Quadriculo:
         self.imagem_quadriculo.draw()
         if self.imagem_sobreposicao:
             self.imagem_sobreposicao.draw()
+        if self.imagem_foco:
+            self.imagem_foco.draw()
 
     def tem_sobreposicao(self):
         return self.imagem_sobreposicao is not None
+
+    def definir_foco(self, ativo=True):
+        if ativo:
+            if self.imagem_foco is None:
+                self.imagem_foco = Sprite(config.RECURSOS['foco'])
+                self.imagem_foco.x = self.imagem_quadriculo.x + (self.imagem_quadriculo.width - self.imagem_foco.width) / 2
+                self.imagem_foco.y = self.imagem_quadriculo.y + (self.imagem_quadriculo.height - self.imagem_foco.height) / 2
+        else:
+            self.imagem_foco = None
 
     def adicionar_sobreposicao(self, caminho_imagem=None):
         if self.tem_sobreposicao():
@@ -83,6 +95,33 @@ class Mapa:
         self._duracao_total_investigacao = 0.0
         
         self.posicao_runa_final = None
+        self.quadriculo_focado = None
+
+    def remover_foco(self):
+        if self.quadriculo_focado:
+            self.quadriculo_focado.definir_foco(False)
+            self.quadriculo_focado = None
+
+    def atualizar_foco(self, coluna, linha):
+        # Otimização: se já estiver focado no mesmo lugar, não faz nada
+        if self.quadriculo_focado and \
+           self.quadriculo_focado.indice_coluna == coluna and \
+           self.quadriculo_focado.indice_linha == linha:
+            return
+
+        # Remove foco anterior
+        if self.quadriculo_focado:
+            self.quadriculo_focado.definir_foco(False)
+            self.quadriculo_focado = None
+
+        # Verifica se coordenadas são válidas
+        if (coluna, linha) in self.dicionario_quadriculos_por_coordenada:
+            novo_foco = self.dicionario_quadriculos_por_coordenada[(coluna, linha)]
+            novo_foco.definir_foco(True)
+            self.quadriculo_focado = novo_foco
+            # ---------------------------------------------------------------
+            print(f"Foco ativado em: coluna {coluna}, linha {linha}")
+            # ---------------------------------------------------------------
 
     def construir(self, tipo='DESERTO', posicao_passagem_anterior=None):
         self.tipo = tipo
