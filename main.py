@@ -88,6 +88,7 @@ while True:
 
     if not janela_fim_jogo.esta_visivel:
         interface.atualizar(tempo_decorrido)
+        interface.processar_input_mouse(mouse_entrada)
 
         if interface.verificar_se_jogador_morreu() and not janela_fim_jogo.esta_visivel and not combate.combate_ativo:
             janela_fim_jogo.aguardar_clique_apos_morte()

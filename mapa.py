@@ -96,6 +96,7 @@ class Mapa:
         
         self.posicao_runa_final = None
         self.quadriculo_focado = None
+        self.posicoes_pergaminhos = []
 
     def remover_foco(self):
         if self.quadriculo_focado:
@@ -103,24 +104,23 @@ class Mapa:
             self.quadriculo_focado = None
 
     def atualizar_foco(self, coluna, linha):
-        # Otimização: se já estiver focado no mesmo lugar, não faz nada
         if self.quadriculo_focado and \
            self.quadriculo_focado.indice_coluna == coluna and \
            self.quadriculo_focado.indice_linha == linha:
             return
 
-        # Remove foco anterior
         if self.quadriculo_focado:
             self.quadriculo_focado.definir_foco(False)
             self.quadriculo_focado = None
 
-        # Verifica se coordenadas são válidas
         if (coluna, linha) in self.dicionario_quadriculos_por_coordenada:
             novo_foco = self.dicionario_quadriculos_por_coordenada[(coluna, linha)]
             novo_foco.definir_foco(True)
             self.quadriculo_focado = novo_foco
             # ---------------------------------------------------------------
-            print(f"Foco ativado em: coluna {coluna}, linha {linha}")
+            item = novo_foco.item if novo_foco.item else 'Nenhum'
+            passagem = 'Sim' if novo_foco.eh_passagem else 'Não'
+            print(f"Foco ativado em: coluna {coluna}, linha {linha}, item: {item}, passagem: {passagem}")
             # ---------------------------------------------------------------
 
     def construir(self, tipo='DESERTO', posicao_passagem_anterior=None):
@@ -175,18 +175,48 @@ class Mapa:
         quantidade_agua = int(total_quadriculos * config.JOGABILIDADE['distribuicao_itens']['agua'] * multiplicador_itens)
         quantidade_pa = int(total_quadriculos * config.JOGABILIDADE['distribuicao_itens']['pa'] * multiplicador_itens)
         quantidade_faca = int(total_quadriculos * config.JOGABILIDADE['distribuicao_itens']['faca'] * multiplicador_itens)
-        
+
         lista_itens = ['agua'] * quantidade_agua + ['pa'] * quantidade_pa + ['faca'] * quantidade_faca
-        random.shuffle(lista_itens)
 
         quadriculos_elegiveis = [q for q in self.lista_quadriculos if q.indice_variacao_terreno in (1, 2)] if self.tipo == 'CAVERNA' else list(self.lista_quadriculos)
         random.shuffle(quadriculos_elegiveis)
 
+        self.posicoes_pergaminhos = []
+        if self.tipo == 'DESERTO':
+            num_perg = config.JOGABILIDADE.get('quantidade_pergaminhos', 0)
+            if num_perg > 0:
+                min_col = min(q.indice_coluna for q in self.lista_quadriculos)
+                max_col = max(q.indice_coluna for q in self.lista_quadriculos)
+                min_lin = min(q.indice_linha for q in self.lista_quadriculos)
+                max_lin = max(q.indice_linha for q in self.lista_quadriculos)
+
+                candidato_pergs = [q for q in quadriculos_elegiveis
+                                   if (q.indice_coluna >= (min_col + 2) and q.indice_coluna <= (max_col - 2)
+                                       and q.indice_linha >= (min_lin + 2) and q.indice_linha <= (max_lin - 2))]
+
+                if len(candidato_pergs) < num_perg:
+                    random.shuffle(quadriculos_elegiveis)
+                    candidato_pergs = [q for q in quadriculos_elegiveis if q not in candidato_pergs]
+                    candidato_pergs = list({q: None for q in (candidato_pergs + quadriculos_elegiveis)}.keys())
+
+                random.shuffle(candidato_pergs)
+                selecionados = candidato_pergs[:num_perg]
+                for q in selecionados:
+                    q.item = 'pergaminho'
+                    self.posicoes_pergaminhos.append((q.indice_coluna, q.indice_linha))
+
+
+        quadriculos_vazios = [q for q in quadriculos_elegiveis if q.item is None]
+        random.shuffle(quadriculos_vazios)
+
         for i, item in enumerate(lista_itens):
-            if i < len(quadriculos_elegiveis):
-                quadriculos_elegiveis[i].item = item
+            if i < len(quadriculos_vazios):
+                quadriculos_vazios[i].item = item
             else:
-                break 
+                break
+
+        if self.posicoes_pergaminhos:
+            print(f"DICA: Pergaminho 1 está em {self.posicoes_pergaminhos[0]}")
 
     def _definir_passagem_secreta(self, linha_inicio, num_linhas, num_colunas):
         if not self.lista_quadriculos: return
@@ -368,17 +398,33 @@ class Mapa:
             sucesso = True
             caminho_imagem = config.RECURSOS['passagem'] if quadriculo and quadriculo.eh_passagem else None
             adicionado = self.marcar_quadriculo_escavado_em(coluna, linha, caminho_imagem)
-            
+
             if adicionado and quadriculo:
                 # ---------------------------------------------------------------
                 item = quadriculo.item
                 item_display = item.upper() if item else "nada"
                 print(f"Escavacao conseguiu! Dado: {dado_bruto}+{bonus_dado} vs {config.JOGABILIDADE['dificuldade_escavacao']}")
                 print(f"Encontrou: {item_display}")
+
+                if item == 'pergaminho':
+                    try:
+                        indice = self.posicoes_pergaminhos.index((coluna, linha))
+                    except ValueError:
+                        indice = None
+                    self._imprimir_dica_proximo_pergaminho(coluna, linha)
+                    item = ('pergaminho', indice)
                 # ---------------------------------------------------------------
-                item = quadriculo.item
                 
         return concluido, sucesso, item, dado
+
+    def _imprimir_dica_proximo_pergaminho(self, coluna, linha):
+        try:
+            indice_atual = self.posicoes_pergaminhos.index((coluna, linha))
+            proximo_indice = (indice_atual + 1) % len(self.posicoes_pergaminhos)
+            proxima_posicao = self.posicoes_pergaminhos[proximo_indice]
+            print(f"DICA: O próximo pergaminho está em {proxima_posicao}")
+        except ValueError:
+            pass
 
     def esta_escavando(self):
         return self._escavando

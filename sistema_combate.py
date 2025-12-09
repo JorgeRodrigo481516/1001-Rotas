@@ -200,6 +200,8 @@ class SistemaCombate:
         else:
             self.mensagens.append((f"Errou o ataque...", config.CORES['cinza'])) # Cinza
             self.temporizador_mensagem = config.COMBATE['tempo_mensagem_padrao']
+        if self.interface:
+            self.interface.consumir_uso_por_nome('faca')
 
     def _acao_defender(self):
         resultado_lancamento_dado = self._calcular_resultado_dado(usar_faca=True)

@@ -65,6 +65,28 @@ class InterfaceUsuario:
         
         self.multiplicador_custo = 1.0
 
+        self.pergaminhos_coletados = []
+        self.modo_inventario = 'padrao' 
+        self.lendo_pergaminho = False
+        self.indice_leitura_atual = None
+        
+        self.imagem_pergaminho = Sprite(config.RECURSOS['pergaminho'])
+        self.fundo_leitura = Sprite(config.RECURSOS['fundo_leitura'])
+        self.fundo_leitura.x = (self.janela.width - self.fundo_leitura.width) / 2
+        self.fundo_leitura.y = (self.janela.height - self.fundo_leitura.height) / 2
+        try:
+            caminho_back = config.RECURSOS.get('botao_back')
+            self.botao_back = Sprite(caminho_back) if caminho_back else None
+        except Exception:
+            self.botao_back = None
+        try:
+            caminho_next = config.RECURSOS.get('botao_next')
+            self.botao_next = Sprite(caminho_next) if caminho_next else None
+        except Exception:
+            self.botao_next = None
+
+        self._clique_pergaminho_processado = False
+
     def calcular_disposicao(self):
         quadriculos_painel = config.INTERFACE_USUARIO.get('altura_painel_em_quadriculos', 2)
         
@@ -101,6 +123,7 @@ class InterfaceUsuario:
             espaco_atual.y = y_espacos
         self.sobreposicoes_espacos = [None for _ in range(contagem_espacos)]
         self.nomes_itens = [None for _ in range(contagem_espacos)]
+        self.usos_itens = [None for _ in range(contagem_espacos)]
 
     def definir_valores(self, sede=None, sol=None):
         if sede is not None:
@@ -150,11 +173,120 @@ class InterfaceUsuario:
             texto_y = int(self.barra_sede.y + self.barra_sede.height + 4)
             self.janela.draw_text(self._mensagem_sede, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=config.CORES['preto'])
 
-        for espaco_atual in self.espacos_inventario:
+        if self.modo_inventario == 'padrao':
+            for espaco_atual in self.espacos_inventario:
+                espaco_atual.draw()
+            for sobreposicao in self.sobreposicoes_espacos:
+                if sobreposicao is not None:
+                    sobreposicao.draw()
+        elif self.modo_inventario == 'pergaminhos':
+            self.desenhar_inventario_pergaminhos()
+
+        if self.lendo_pergaminho:
+            self.desenhar_popup_leitura()
+
+    def desenhar_inventario_pergaminhos(self):
+        for i, espaco_atual in enumerate(self.espacos_inventario):
             espaco_atual.draw()
-        for sobreposicao in self.sobreposicoes_espacos:
-            if sobreposicao is not None:
-                sobreposicao.draw()
+            if i in self.pergaminhos_coletados:
+                self.imagem_pergaminho.x = espaco_atual.x + (espaco_atual.width - self.imagem_pergaminho.width) / 2
+                self.imagem_pergaminho.y = espaco_atual.y + (espaco_atual.height - self.imagem_pergaminho.height) / 2
+                self.imagem_pergaminho.draw()
+
+    def desenhar_popup_leitura(self):
+        self.fundo_leitura.draw()
+        if self.indice_leitura_atual is not None:
+            texto = f"Fragmento de Historia #{self.indice_leitura_atual + 1}"
+            largura_texto = len(texto) * 10
+            self.janela.draw_text(texto, self.fundo_leitura.x + (self.fundo_leitura.width - largura_texto)/2, self.fundo_leitura.y + 50, size=20, color=config.CORES['branco'], bold=True)
+            
+            instrucao = "Pressione 'I' para fechar"
+            self.janela.draw_text(instrucao, self.fundo_leitura.x + 50, self.fundo_leitura.y + self.fundo_leitura.height - 50, size=14, color=config.CORES['branco'])
+        espacamento = 50
+        botoes = []
+        if self.botao_back is not None:
+            botoes.append(self.botao_back)
+        if self.botao_next is not None:
+            botoes.append(self.botao_next)
+
+        if botoes:
+            largura_total_botoes = sum(b.width for b in botoes) + espacamento * (len(botoes) - 1)
+            inicio_x = self.fundo_leitura.x + (self.fundo_leitura.width - largura_total_botoes) / 2
+            y_botoes = self.fundo_leitura.y + self.fundo_leitura.height - (botoes[0].height if botoes else 0) - 30 - 15
+
+            lista_pergs = sorted(self.pergaminhos_coletados)
+            has_prev = False
+            has_next = False
+            if self.indice_leitura_atual is not None and lista_pergs:
+                try:
+                    pos = lista_pergs.index(self.indice_leitura_atual)
+                except ValueError:
+                    pos = 0
+                has_prev = pos > 0
+                has_next = pos < (len(lista_pergs) - 1)
+
+            x_atual = inicio_x
+            if self.botao_back is not None:
+                self.botao_back.x = x_atual
+                self.botao_back.y = y_botoes
+                if has_prev:
+                    self.botao_back.draw()
+                x_atual += self.botao_back.width + espacamento
+
+            if self.botao_next is not None:
+                self.botao_next.x = x_atual
+                self.botao_next.y = y_botoes
+                if has_next:
+                    self.botao_next.draw()
+
+    def alternar_modo_inventario(self, modo):
+        self.modo_inventario = modo
+        if modo == 'padrao':
+            self.fechar_leitura()
+
+    def abrir_leitura(self, indice):
+        self.lendo_pergaminho = True
+        self.indice_leitura_atual = indice
+
+    def processar_input_mouse(self, dispositivo_mouse):
+        if not self.lendo_pergaminho:
+            self._clique_pergaminho_processado = False
+            return
+
+        if self.botao_back is None and self.botao_next is None:
+            return
+
+        if dispositivo_mouse.is_button_pressed(1):
+            if not self._clique_pergaminho_processado:
+                self._clique_pergaminho_processado = True
+
+                lista_pergs = sorted(self.pergaminhos_coletados)
+                if not lista_pergs:
+                    return
+
+                if self.indice_leitura_atual not in lista_pergs:
+                    self.indice_leitura_atual = lista_pergs[0]
+
+                try:
+                    pos = lista_pergs.index(self.indice_leitura_atual)
+                except ValueError:
+                    pos = 0
+
+                if self.botao_back is not None and dispositivo_mouse.is_over_object(self.botao_back):
+                    if pos > 0:
+                        self.indice_leitura_atual = lista_pergs[pos - 1]
+                    return
+
+                if self.botao_next is not None and dispositivo_mouse.is_over_object(self.botao_next):
+                    if pos < len(lista_pergs) - 1:
+                        self.indice_leitura_atual = lista_pergs[pos + 1]
+                    return
+        else:
+            self._clique_pergaminho_processado = False
+
+    def fechar_leitura(self):
+        self.lendo_pergaminho = False
+        self.indice_leitura_atual = None
 
     def _desenhar_barras_sede_e_sol(self, imagem_barra, valor):
         if valor <= 0:
@@ -221,6 +353,12 @@ class InterfaceUsuario:
                 imagem.y = espaco.y + (espaco.height - imagem.height) / 2
                 self.sobreposicoes_espacos[i] = imagem
                 self.nomes_itens[i] = nome_item
+                if nome_item == 'pa':
+                    self.usos_itens[i] = config.JOGABILIDADE.get('usos_pa', None)
+                elif nome_item == 'faca':
+                    self.usos_itens[i] = config.JOGABILIDADE.get('usos_faca', None)
+                else:
+                    self.usos_itens[i] = None
                 # ---------------------------------------------------------------
                 item_nome = nome_item.upper() if nome_item else "item"
                 print(f"Pegou: {item_nome}")
@@ -233,12 +371,51 @@ class InterfaceUsuario:
             return False
         if self.sobreposicoes_espacos[indice] is None:
             return False
+        nome = self.nomes_itens[indice]
+        if nome in ('pa', 'faca') and self.usos_itens[indice] is not None:
+            usos_restantes = self.usos_itens[indice]
+            if usos_restantes > 1:
+                self.usos_itens[indice] = usos_restantes - 1
+                print(f"Usou {nome}. Usos restantes: {self.usos_itens[indice]}")
+                return True
+            else:
+                self.usos_itens[indice] = None
+                self.sobreposicoes_espacos[indice] = None
+                self.nomes_itens[indice] = None
+                print(f"{nome.upper()} quebrou/acabou e foi removida do inventário.")
+                return True
+
         self.sobreposicoes_espacos[indice] = None
         self.nomes_itens[indice] = None
+        self.usos_itens[indice] = None
         return True
 
     def tem_item(self, nome_item):
         return nome_item in self.nomes_itens
+
+    def consumir_uso_por_nome(self, nome_item):
+        try:
+            indice = self.nomes_itens.index(nome_item)
+        except ValueError:
+            return False
+
+        usos = self.usos_itens[indice]
+        if usos is None:
+            self.sobreposicoes_espacos[indice] = None
+            self.nomes_itens[indice] = None
+            self.usos_itens[indice] = None
+            return True
+
+        if usos > 1:
+            self.usos_itens[indice] = usos - 1
+            print(f"Consumiu uso de {nome_item}. Usos restantes: {self.usos_itens[indice]}")
+            return True
+        else:
+            self.sobreposicoes_espacos[indice] = None
+            self.nomes_itens[indice] = None
+            self.usos_itens[indice] = None
+            print(f"{nome_item.upper()} quebrou/acabou e foi removida do inventário.")
+            return True
 
     def remover_item(self, nome_item):
         try:
@@ -250,7 +427,6 @@ class InterfaceUsuario:
             return False
 
     def recuperar_sede_escavacao(self):
-        # Aumentar a sede é custo/punição (quanto maior, pior para o jogador)
         custo_sede = config.JOGABILIDADE['recuperacao_sede_item']
         self.definir_valores(sede=self.sede + custo_sede)
         self.exibir_mensagem('sede', f'+{custo_sede}', duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
@@ -363,8 +539,40 @@ class InterfaceUsuario:
         
         self.recuperar_sede_escavacao()
         
+        if isinstance(item_encontrado, tuple) and item_encontrado[0] == 'pergaminho':
+            indice = item_encontrado[1]
+            if indice is None:
+                if len(self.pergaminhos_coletados) < config.JOGABILIDADE['quantidade_pergaminhos']:
+                    novo_id = len(self.pergaminhos_coletados)
+                    self.pergaminhos_coletados.append(novo_id)
+                    print(f"Pergaminho #{novo_id + 1} encontrado!")
+                    self.alternar_modo_inventario('pergaminhos')
+                    return 'pergaminho_encontrado'
+                else:
+                    return 'sucesso_sem_item'
+
+            if 0 <= indice < config.JOGABILIDADE['quantidade_pergaminhos']:
+                if indice not in self.pergaminhos_coletados:
+                    self.pergaminhos_coletados.append(indice)
+                    print(f"Pergaminho #{indice + 1} encontrado! (slot fixo)")
+                    self.alternar_modo_inventario('pergaminhos')
+                    return 'pergaminho_encontrado'
+                else:
+                    return 'sucesso_sem_item'
+
+        if item_encontrado == 'pergaminho':
+            if len(self.pergaminhos_coletados) < config.JOGABILIDADE['quantidade_pergaminhos']:
+                novo_id = len(self.pergaminhos_coletados)
+                self.pergaminhos_coletados.append(novo_id)
+                print(f"Pergaminho #{novo_id + 1} encontrado!")
+                self.alternar_modo_inventario('pergaminhos')
+                return 'pergaminho_encontrado'
+            else:
+                return 'sucesso_sem_item'
+
         if sobreposicao_adicionada and item_encontrado:
             self.processar_item_encontrado(item_encontrado)
+            self.alternar_modo_inventario('padrao')
             return 'sucesso'
         elif sobreposicao_adicionada:
             return 'sucesso_sem_item'

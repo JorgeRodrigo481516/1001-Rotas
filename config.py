@@ -23,7 +23,7 @@ NOTAS DE IMPLEMENTAÇÃO:
 """
 
 LARGURA_JANELA = 800
-ALTURA_JANELA = 600
+ALTURA_JANELA = 728
 
 
 
@@ -49,12 +49,16 @@ RECURSOS = {
     'botao_defender': "assets/botao defend.png",
     'botao_item': "assets/botao item.png",
     'botao_fugir': "assets/botao run.png",
+    'botao_back': "assets/botao back.png",
+    'botao_next': "assets/botao next.png",
     'inimigo_tempestade': "assets/inimigo tempestade.png",
     'inimigo_serpente': "assets/inimigo serpente.png",
     'inimigo_golem': "assets/inimigo golem.png",
     'fundo_morte': "assets/tela morte.png",
     'botao_reiniciar': "assets/botao restart.png",
     'foco': "assets/foco.png",
+    'pergaminho': "assets/pergaminho.png",
+    'fundo_leitura': "assets/tela combate.png",
 }
 
 
@@ -89,6 +93,7 @@ CORES = {
     'barra_entrando_preenchimento': (100, 255, 100),
     'barra_ativando_preenchimento': (148, 0, 211),
     'texto_ativando': (148, 0, 211),
+    'azul_runico': (0, 255, 255),
 }
 
 JOGABILIDADE = {
@@ -100,9 +105,9 @@ JOGABILIDADE = {
     'max_sol': 1000,
     'sede_inicial': 100,
     'sol_inicial': 100,
-    'taxa_sede_segundo': 4,
-    'taxa_sol_segundo': 2,
-    'recuperacao_sede_item': 100,
+    'taxa_sede_segundo': 2,
+    'taxa_sol_segundo': 1,
+    'recuperacao_sede_item': 40,
     'recuperacao_sede_beber': 200,
     'bonus_escavacao_pa': 3,
     'bonus_combate_faca': 3,
@@ -112,6 +117,8 @@ JOGABILIDADE = {
     'duracao_escavacao': 2.0,
     'dificuldade_escavacao': 12,
     'dado_escavacao': 20,
+    'usos_pa': 6,
+    'usos_faca': 9,
     'distribuicao_itens': {'agua': 0.35, 'pa': 0.05, 'faca': 0.05},
     
     'custo_investigacao_sede': 30,
@@ -131,6 +138,7 @@ JOGABILIDADE = {
     'percentual_variacao_3_caverna': 0.15,
     'percentual_variacao_4_caverna': 0.05,
     'quantidade_runas_caverna': 7,
+    'quantidade_pergaminhos': 8,
 }
 
 COMBATE = {

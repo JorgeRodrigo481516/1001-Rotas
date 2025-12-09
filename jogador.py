@@ -72,7 +72,7 @@ class Jogador:
         self._tempo_parado = 0.0
         self._tempo_para_ativar_foco = 0.5
         
-        self.sistema_foco_ativo = True
+        self.sistema_foco_ativo = False
         self.tecla_f_pressionada = False
 
         self.mecanicas_caverna = None
@@ -155,7 +155,6 @@ class Jogador:
         self.posicao_pixel_x = max(min_x, min(self.posicao_pixel_x, max_x))
         self.posicao_pixel_y = max(min_y, min(self.posicao_pixel_y, max_y))
 
-        # Lógica de foco com atraso
         if self.sistema_foco_ativo:
             if esta_movendo:
                 self._tempo_parado = 0.0
@@ -178,10 +177,14 @@ class Jogador:
                 self.mapa.remover_foco()
 
     def processar_comandos(self, teclado):
+        if self.interface and self.interface.lendo_pergaminho:
+            if teclado.key_pressed("I"):
+                self.interface.alternar_modo_inventario('padrao')
+            return
+
         if self.tem_mensagem_cabeca() or self._esta_em_acao():
             return
 
-        # Toggle do sistema de foco
         if teclado.key_pressed("F"):
             if not self.tecla_f_pressionada:
                 self.sistema_foco_ativo = not self.sistema_foco_ativo
@@ -190,6 +193,20 @@ class Jogador:
                 print(f"Sistema de foco: {estado}")
         else:
             self.tecla_f_pressionada = False
+
+        if teclado.key_pressed("P"):
+            if self.interface:
+                self.interface.alternar_modo_inventario('pergaminhos')
+        
+        if teclado.key_pressed("I"):
+            if self.interface:
+                self.interface.alternar_modo_inventario('padrao')
+
+        if self.interface and self.interface.modo_inventario == 'pergaminhos':
+             for i in range(8):
+                 if teclado.key_pressed(str(i+1)):
+                     if i in self.interface.pergaminhos_coletados:
+                         self.interface.abrir_leitura(i)
 
         if teclado.key_pressed("X"):
              if getattr(self.mapa, 'tipo', 'DESERTO') != 'CAVERNA':
@@ -201,12 +218,18 @@ class Jogador:
         if teclado.key_pressed("SPACE"):
             coluna, linha = self.obter_coordenadas_grade(self.mapa.largura_quadriculo, self.mapa.altura_quadriculo)
             possui_pa = self.interface.tem_item('pa') if self.interface else False
+            if possui_pa and self.interface:
+                self.interface.consumir_uso_por_nome('pa')
             self.mapa.iniciar_escavacao(coluna, linha, tem_pa=possui_pa)
 
         if self.interface:
             indice_acionado = self.interface.obter_indice_item_acionado(teclado)
             if indice_acionado is not None:
-                self.beber(indice_acionado, duracao=config.JOGABILIDADE['duracao_beber'])
+                nome_item = self.interface.nomes_itens[indice_acionado]
+                if nome_item == 'agua':
+                    self.beber(indice_acionado, duracao=config.JOGABILIDADE['duracao_beber'])
+                else:
+                    print(f"Atalho numérico: item no slot {indice_acionado+1} ('{nome_item}') não é ativável por número.")
 
     def desenhar(self):
         if self.ultima_direcao == 'direita':
@@ -308,7 +331,10 @@ class Jogador:
         if terminou:
             resultado = self.interface.processar_recompensa_escavacao(item_encontrado, sobreposicao_adicionada)
             
-            if resultado == 'pa_duplicada':
+            if resultado == 'pergaminho_encontrado':
+                 self.exibir_mensagem_cabeca("Fragmento de Historia!", 
+                    duracao=config.INTERFACE_USUARIO['duracao_msg_cabeca_padrao'])
+            elif resultado == 'pa_duplicada':
                 self.exibir_mensagem_cabeca(config.MENSAGENS['erro_pa_duplicada'], 
                     duracao=config.INTERFACE_USUARIO['duracao_msg_cabeca_erro'])
             elif resultado == 'faca_duplicada':
@@ -345,4 +371,5 @@ class Jogador:
 
     def _esta_em_acao(self):
         caindo = self.mecanicas_caverna.esta_caindo() if self.mecanicas_caverna else False
-        return self.mapa.esta_escavando() or self.mapa.esta_investigando() or self._bebendo or caindo
+        lendo = self.interface.lendo_pergaminho if self.interface else False
+        return self.mapa.esta_escavando() or self.mapa.esta_investigando() or self._bebendo or caindo or lendo
