@@ -26,6 +26,7 @@ NOTAS DE IMPLEMENTAÇÃO:
 -------------------------------------------------------------------
 """
 from PPlay.sprite import Sprite
+from popup import TelaLeitura
 import config
 
 
@@ -67,16 +68,8 @@ class InterfaceUsuario:
         self.lendo_pergaminho = False
         self.indice_leitura_atual = None
         
-        self.imagem_pergaminho = Sprite(config.RECURSOS['pergaminho'])
-        self.fundo_leitura = Sprite(config.RECURSOS['fundo_leitura'])
-        self.fundo_leitura.x = (self.janela.width - self.fundo_leitura.width) / 2
-        self.fundo_leitura.y = (self.janela.height - self.fundo_leitura.height) / 2
-        caminho_back = config.RECURSOS.get('botao_back')
-        self.botao_back = self._carregar_sprite_segura(caminho_back)
-        caminho_next = config.RECURSOS.get('botao_next')
-        self.botao_next = self._carregar_sprite_segura(caminho_next)
-
-        self._clique_pergaminho_processado = False
+        # UI de leitura (delegada a TelaLeitura)
+        self.tela_leitura = TelaLeitura(self.janela)
 
     def calcular_disposicao(self):
         quadriculos_painel = config.INTERFACE_USUARIO.get('altura_painel_em_quadriculos', 2)
@@ -182,61 +175,21 @@ class InterfaceUsuario:
             self.desenhar_inventario_pergaminhos()
 
         if self.lendo_pergaminho:
-            self.desenhar_popup_leitura()
+            # delega desenho do popup de leitura para TelaLeitura
+            self.tela_leitura.desenhar(self.pergaminhos_coletados, self.indice_leitura_atual, self.lendo_pergaminho)
 
     def desenhar_inventario_pergaminhos(self):
+        imagem_pergaminho = getattr(self.tela_leitura, 'imagem_pergaminho', None)
         for indice_espaco, espaco_atual in enumerate(self.espacos_inventario):
             espaco_atual.draw()
-            if indice_espaco in self.pergaminhos_coletados:
-                self.imagem_pergaminho.x = espaco_atual.x + (espaco_atual.width - self.imagem_pergaminho.width) / 2
-                self.imagem_pergaminho.y = espaco_atual.y + (espaco_atual.height - self.imagem_pergaminho.height) / 2
-                self.imagem_pergaminho.draw()
+            if indice_espaco in self.pergaminhos_coletados and imagem_pergaminho is not None:
+                imagem_pergaminho.x = espaco_atual.x + (espaco_atual.width - imagem_pergaminho.width) / 2
+                imagem_pergaminho.y = espaco_atual.y + (espaco_atual.height - imagem_pergaminho.height) / 2
+                imagem_pergaminho.draw()
 
-    def desenhar_popup_leitura(self):
-        self.fundo_leitura.draw()
-        if self.indice_leitura_atual is not None:
-            texto = f"Fragmento de Historia #{self.indice_leitura_atual + 1}"
-            largura_texto = len(texto) * 10
-            self.janela.draw_text(texto, self.fundo_leitura.x + (self.fundo_leitura.width - largura_texto)/2, self.fundo_leitura.y + 50, size=20, color=config.CORES['branco'], bold=True)
-            
-            instrucao = "Pressione 'I' para fechar"
-            self.janela.draw_text(instrucao, self.fundo_leitura.x + 50, self.fundo_leitura.y + self.fundo_leitura.height - 50, size=14, color=config.CORES['branco'])
-        espacamento = 50
-        botoes = []
-        if self.botao_back is not None:
-            botoes.append(self.botao_back)
-        if self.botao_next is not None:
-            botoes.append(self.botao_next)
 
-        if botoes:
-            largura_total_botoes = sum(b.width for b in botoes) + espacamento * (len(botoes) - 1)
-            inicio_x = self.fundo_leitura.x + (self.fundo_leitura.width - largura_total_botoes) / 2
-            y_botoes = self.fundo_leitura.y + self.fundo_leitura.height - (botoes[0].height if botoes else 0) - 30 - 15
-
-            lista_pergs = sorted(self.pergaminhos_coletados)
-            has_prev = False
-            has_next = False
-            if self.indice_leitura_atual is not None and lista_pergs:
-                try:
-                    pos = lista_pergs.index(self.indice_leitura_atual)
-                except ValueError:
-                    pos = 0
-                has_prev = pos > 0
-                has_next = pos < (len(lista_pergs) - 1)
-
-            x_atual = inicio_x
-            if self.botao_back is not None:
-                self.botao_back.x = x_atual
-                self.botao_back.y = y_botoes
-                if has_prev:
-                    self.botao_back.draw()
-                x_atual += self.botao_back.width + espacamento
-
-            if self.botao_next is not None:
-                self.botao_next.x = x_atual
-                self.botao_next.y = y_botoes
-                if has_next:
-                    self.botao_next.draw()
+        # a renderização dos botões de navegação e do conteúdo do pergaminho
+        # foi delegada para `TelaLeitura` em `popup.py`.
 
     def alternar_modo_inventario(self, modo):
         self.modo_inventario = modo
@@ -249,39 +202,12 @@ class InterfaceUsuario:
 
     def processar_input_mouse(self, dispositivo_mouse):
         if not self.lendo_pergaminho:
-            self._clique_pergaminho_processado = False
             return
 
-        if self.botao_back is None and self.botao_next is None:
-            return
-
-        if dispositivo_mouse.is_button_pressed(1):
-            if not self._clique_pergaminho_processado:
-                self._clique_pergaminho_processado = True
-
-                lista_pergs = sorted(self.pergaminhos_coletados)
-                if not lista_pergs:
-                    return
-
-                if self.indice_leitura_atual not in lista_pergs:
-                    self.indice_leitura_atual = lista_pergs[0]
-
-                try:
-                    pos = lista_pergs.index(self.indice_leitura_atual)
-                except ValueError:
-                    pos = 0
-
-                if self.botao_back is not None and dispositivo_mouse.is_over_object(self.botao_back):
-                    if pos > 0:
-                        self.indice_leitura_atual = lista_pergs[pos - 1]
-                    return
-
-                if self.botao_next is not None and dispositivo_mouse.is_over_object(self.botao_next):
-                    if pos < len(lista_pergs) - 1:
-                        self.indice_leitura_atual = lista_pergs[pos + 1]
-                    return
-        else:
-            self._clique_pergaminho_processado = False
+        # delega o processamento de cliques ao popup de leitura
+        novo_indice = self.tela_leitura.processar_evento(dispositivo_mouse, self.pergaminhos_coletados, self.indice_leitura_atual)
+        if novo_indice is not None:
+            self.indice_leitura_atual = novo_indice
 
     def fechar_leitura(self):
         self.lendo_pergaminho = False

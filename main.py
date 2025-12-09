@@ -26,14 +26,14 @@ from mapa import Mapa
 from jogador import Jogador
 from interface_usuario import InterfaceUsuario
 import config
-from popup_fim_de_jogo import JanelaFimDeJogo
+from popup import TelaMorte, TelaCombate
 from sistema_combate import SistemaCombate
 from mecanicas_caverna import MecanicasCaverna
 
 janela = Window(config.LARGURA_JANELA, config.ALTURA_JANELA)
 janela.set_title("1001 Rotas")
 
-janela_fim_jogo = JanelaFimDeJogo(janela)
+tela_morte = TelaMorte(janela)
 mouse_entrada = janela.get_mouse()
 
 mapa_deserto = None
@@ -43,6 +43,7 @@ interface = None
 jogador = None
 combate = None
 controlador_mecanicas_caverna = None
+tela_combate = None
 
 def inicializar_recursos_jogo():
     global mapa_deserto, mapa_caverna, mapa_ativo, interface, jogador, combate, controlador_mecanicas_caverna
@@ -58,7 +59,8 @@ def inicializar_recursos_jogo():
     mapa_ativo = mapa_deserto
 
     interface = InterfaceUsuario(janela, altura_quadriculo=mapa_ativo.altura_quadriculo)
-    combate = SistemaCombate(janela, interface)
+    tela_combate = TelaCombate(janela)
+    combate = SistemaCombate(janela, interface, tela_combate)
 
     jogador = Jogador(None, None, janela, mapa_ativo, interface=interface, sistema_combate=combate)
     
@@ -77,18 +79,18 @@ while True:
     teclado = janela.get_keyboard()
     tempo_decorrido = janela.delta_time()
 
-    if janela_fim_jogo.esta_visivel:
-        janela_fim_jogo.atualizar(tempo_decorrido)
-        if janela_fim_jogo.verificar_clique_reiniciar(mouse_entrada):
+    if tela_morte.esta_visivel:
+        tela_morte.atualizar(tempo_decorrido)
+        if tela_morte.verificar_clique_reiniciar(mouse_entrada):
             inicializar_recursos_jogo()
-            janela_fim_jogo.ocultar()
+            tela_morte.ocultar()
 
-    if not janela_fim_jogo.esta_visivel:
+    if not tela_morte.esta_visivel:
         interface.atualizar(tempo_decorrido)
         interface.processar_input_mouse(mouse_entrada)
 
-        if interface.verificar_se_jogador_morreu() and not janela_fim_jogo.esta_visivel and not combate.combate_ativo:
-            janela_fim_jogo.aguardar_clique_apos_morte()
+        if interface.verificar_se_jogador_morreu() and not tela_morte.esta_visivel and not combate.combate_ativo:
+            tela_morte.aguardar_clique_apos_morte()
             if interface.sede >= config.JOGABILIDADE['max_sede']:
                 print("Morreu de sede!")
             else:
@@ -99,8 +101,8 @@ while True:
         else:
             jogador.atualizar(teclado, tempo_decorrido)
 
-            if controlador_mecanicas_caverna.morreu_por_queda and not janela_fim_jogo.esta_visivel:
-                janela_fim_jogo.aguardar_clique_apos_morte()
+            if controlador_mecanicas_caverna.morreu_por_queda and not tela_morte.esta_visivel:
+                tela_morte.aguardar_clique_apos_morte()
 
             if controlador_mecanicas_caverna.solicitacao_transicao:
                 controlador_mecanicas_caverna.solicitacao_transicao = False
@@ -134,8 +136,8 @@ while True:
                 tipo_mapa = getattr(mapa_ativo, 'tipo', 'DESERTO')
                 combate.verificar_e_iniciar_combate(valor_dado, tipo_mapa)
 
-                if interface.verificar_se_jogador_morreu() and not janela_fim_jogo.esta_visivel and not combate.combate_ativo:
-                    janela_fim_jogo.aguardar_clique_apos_morte()
+                if interface.verificar_se_jogador_morreu() and not tela_morte.esta_visivel and not combate.combate_ativo:
+                    tela_morte.aguardar_clique_apos_morte()
 
     mapa_ativo.desenhar()
 
@@ -146,6 +148,6 @@ while True:
     if combate.combate_ativo:
         combate.desenhar()
 
-    janela_fim_jogo.desenhar()
+    tela_morte.desenhar()
 
     janela.update()

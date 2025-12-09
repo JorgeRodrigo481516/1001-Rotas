@@ -30,35 +30,40 @@ import config
 import random
 
 class SistemaCombate:
-    def __init__(self, janela: Window, interface):
+    def __init__(self, janela: Window, interface, tela_combate):
+        # agora exigimos um objeto `TelaCombate` — responsabilidade de UI foi centralizada
         self.janela = janela
         self.interface = interface
         self.combate_ativo = False
-        
-        self.fundo_combate = GameImage(config.RECURSOS['fundo_combate'])
-        self.protagonista = GameImage(config.RECURSOS['protagonista_combate'])
-        
-        self.botao_atacar = GameImage(config.RECURSOS['botao_atacar'])
-        self.botao_defender = GameImage(config.RECURSOS['botao_defender'])
-        self.botao_item = GameImage(config.RECURSOS['botao_item'])
-        self.botao_fugir = GameImage(config.RECURSOS['botao_fugir'])
-        
-        self.imagem_tempestade = GameImage(config.RECURSOS['inimigo_tempestade'])
-        self.imagem_serpente = GameImage(config.RECURSOS['inimigo_serpente'])
-        self.imagem_golem = GameImage(config.RECURSOS['inimigo_golem'])
-        
+        self.tela_combate = tela_combate
+
+        # Utiliza diretamente os elementos providos por TelaCombate
+        self.tela_combate.atualizar_posicoes()
+        self.fundo_combate = self.tela_combate.fundo_combate
+        self.protagonista = self.tela_combate.protagonista
+
+        self.botao_atacar = self.tela_combate.botao_atacar
+        self.botao_defender = self.tela_combate.botao_defender
+        self.botao_item = self.tela_combate.botao_item
+        self.botao_fugir = self.tela_combate.botao_fugir
+
+        self.imagem_tempestade = self.tela_combate.imagem_tempestade
+        self.imagem_serpente = self.tela_combate.imagem_serpente
+        self.imagem_golem = self.tela_combate.imagem_golem
+
         self.inimigo_atual = None
         self.turnos_imunidade = 0
         self.temporizador_mensagem = 0
         self.clique_ja_processado = False
-        
+
         self.dados_inimigos = {
             'tempestade': {'imagem': self.imagem_tempestade, 'dano_base': config.COMBATE['dano_base_tempestade']},
             'serpente': {'imagem': self.imagem_serpente, 'dano_base': config.COMBATE['dano_base_serpente']},
             'golem': {'imagem': self.imagem_golem, 'dano_base': config.COMBATE['dano_base_golem']}
         }
-        
-        self._posicionar_elementos()
+
+        if self.tela_combate is None:
+            self._posicionar_elementos()
 
     def _posicionar_elementos(self):
         self.fundo_combate.x = (self.janela.width - self.fundo_combate.width) / 2
@@ -131,6 +136,8 @@ class SistemaCombate:
         self.clique_ja_processado = False
         self.encerrando_combate = False
         self.temporizador_encerramento = 0.0
+        # notificar e exibir a UI de combate vinculada
+        self.tela_combate.iniciar_combate(self.inimigo_atual, None, callback_resultado=None)
 
     def atualizar(self, tempo_decorrido, dispositivo_mouse):
         if not self.combate_ativo:
@@ -146,6 +153,8 @@ class SistemaCombate:
             if self.temporizador_encerramento <= 0:
                 self.combate_ativo = False
                 self.encerrando_combate = False
+                # ocultar UI de combate vinculada
+                self.tela_combate.ocultar()
             return
 
         if dispositivo_mouse.is_button_pressed(1):
@@ -276,28 +285,31 @@ class SistemaCombate:
     def desenhar(self):
         if not self.combate_ativo:
             return
+        # delega o desenho para a TelaCombate vinculada
+        self.tela_combate.desenhar(inimigo_atual=self.inimigo_atual, mensagens=getattr(self, 'mensagens', None))
+        return
 
         self.fundo_combate.draw()
         self.protagonista.draw()
         self.inimigo_atual['imagem'].draw()
-        
+
         self.botao_atacar.draw()
         self.botao_defender.draw()
         self.botao_item.draw()
         self.botao_fugir.draw()
-        
+
         if self.mensagens:
             x_atual = self.fundo_combate.x + 40 + 10
             y_texto = self.fundo_combate.y + 40
-            
+
             for texto, cor in self.mensagens:
                 self.janela.draw_text(
-                    texto, 
-                    x_atual, 
-                    y_texto, 
-                    size=config.INTERFACE_USUARIO['tamanho_fonte_combate'], 
-                    color=cor, 
-                    font_name="Arial", 
+                    texto,
+                    x_atual,
+                    y_texto,
+                    size=config.INTERFACE_USUARIO['tamanho_fonte_combate'],
+                    color=cor,
+                    font_name="Arial",
                     bold=True
                 )
                 largura_estimada = len(texto) * 6
