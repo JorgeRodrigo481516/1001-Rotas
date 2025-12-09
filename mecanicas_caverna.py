@@ -31,46 +31,44 @@ class MecanicasCaverna:
         
         self._esta_em_queda = False
         self._temporizador_queda = 0.0
-        self._duracao_queda = 0.5
+        self._duracao_queda = config.JOGABILIDADE.get('duracao_queda_buraco', 0.5)
         self.morreu_por_queda = False
         
         self._esta_ativando_runa = False
         self._temporizador_ativacao = 0.0
-        self._duracao_ativacao = 6.0
+        self._duracao_ativacao = config.JOGABILIDADE.get('duracao_ativacao_runa', 6.0)
         
         self._esta_entrando_na_passagem = False
         self._temporizador_entrada = 0.0
         self._duracao_entrada = config.JOGABILIDADE['duracao_entrada_passagem']
         self.solicitacao_transicao = False
 
-        # ---------------------------------------------------------------
         self._ja_printou_passagem = False
-        # ---------------------------------------------------------------
     
     def atualizar(self, tempo_decorrido, esta_movendo):
         largura_sprite = self.jogador.andar_direita_1.width
         altura_sprite = self.jogador.andar_direita_1.height
         
-        pe_x = self.jogador.posicao_pixel_x + largura_sprite / 2
-        pe_y = self.jogador.posicao_pixel_y + altura_sprite
-        
-        coluna_pe = int(pe_x / self.mapa.largura_quadriculo)
-        linha_pe = int(pe_y / self.mapa.altura_quadriculo)
-        quadriculo_pe = self.mapa.obter_quadriculo_por_coordenada_grade(coluna_pe, linha_pe)
-        
-        self._atualizar_animacao_queda(tempo_decorrido, pe_x, pe_y, coluna_pe, linha_pe, esta_movendo)
-        self._atualizar_ativacao_runa(tempo_decorrido, pe_x, pe_y, coluna_pe, linha_pe, esta_movendo)
-        self._atualizar_entrada_passagem(tempo_decorrido, pe_x, pe_y, coluna_pe, linha_pe, quadriculo_pe, esta_movendo)
+        posicao_base_sprite_x = self.jogador.posicao_pixel_x + largura_sprite / 2
+        posicao_base_sprite_y = self.jogador.posicao_pixel_y + altura_sprite
+
+        coluna_sprite = int(posicao_base_sprite_x / self.mapa.largura_quadriculo)
+        linha_sprite = int(posicao_base_sprite_y / self.mapa.altura_quadriculo)
+        quadriculo_sprite = self.mapa.obter_quadriculo_por_coordenada_grade(coluna_sprite, linha_sprite)
+
+        self._atualizar_animacao_queda(tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo)
+        self._atualizar_ativacao_runa(tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo)
+        self._atualizar_entrada_passagem(tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, quadriculo_sprite, esta_movendo)
     
-    def _atualizar_animacao_queda(self, tempo_decorrido, pe_x, pe_y, coluna_pe, linha_pe, esta_movendo):
-        eh_buraco = self.mapa.eh_buraco(coluna_pe, linha_pe)
+    def _atualizar_animacao_queda(self, tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo):
+        eh_buraco = self.mapa.eh_buraco(coluna_sprite, linha_sprite)
         esta_no_centro_buraco = False
         
         if eh_buraco:
-            centro_x = (coluna_pe * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
-            centro_y = (linha_pe * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
-            distancia = ((pe_x - centro_x)**2 + (pe_y - centro_y)**2)**0.5
-            if distancia < 10: 
+            centro_x = (coluna_sprite * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
+            centro_y = (linha_sprite * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
+            distancia = ((posicao_base_sprite_x - centro_x)**2 + (posicao_base_sprite_y - centro_y)**2)**0.5
+            if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_buraco', 10): 
                 esta_no_centro_buraco = True
         
         if esta_no_centro_buraco:
@@ -78,24 +76,22 @@ class MecanicasCaverna:
             self._temporizador_queda += tempo_decorrido
             if self._temporizador_queda >= self._duracao_queda:
                 self.morreu_por_queda = True
-                # ---------------------------------------------------------------
                 print(f"Caiu em um buraco!")
-                # ---------------------------------------------------------------
         else:
             self._esta_em_queda = False
             self._temporizador_queda = 0.0
     
-    def _atualizar_ativacao_runa(self, tempo_decorrido, pe_x, pe_y, coluna_pe, linha_pe, esta_movendo):
-        eh_runa = self.mapa.eh_runa(coluna_pe, linha_pe)
+    def _atualizar_ativacao_runa(self, tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo):
+        eh_runa = self.mapa.eh_runa(coluna_sprite, linha_sprite)
         esta_no_centro_runa = False
         
         if eh_runa:
-            centro_x = (coluna_pe * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
-            centro_y = (linha_pe * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
-            distancia = ((pe_x - centro_x)**2 + (pe_y - centro_y)**2)**0.5
-            if distancia < 15: 
+            centro_x = (coluna_sprite * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
+            centro_y = (linha_sprite * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
+            distancia = ((posicao_base_sprite_x - centro_x)**2 + (posicao_base_sprite_y - centro_y)**2)**0.5
+            if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_runa', 15): 
                 esta_no_centro_runa = True
-        
+
         if esta_no_centro_runa and not esta_movendo:
             self._esta_ativando_runa = True
             self._temporizador_ativacao += tempo_decorrido
@@ -104,48 +100,40 @@ class MecanicasCaverna:
                 self._temporizador_ativacao = 0.0
                 self._esta_ativando_runa = False
                 
-                posicao_atual = (coluna_pe, linha_pe)
+                posicao_atual = (coluna_sprite, linha_sprite)
                 if posicao_atual != self.mapa.posicao_runa_final:
-                    self.transformar_runa_em_inimigo(coluna_pe, linha_pe)
-                    # ---------------------------------------------------------------
+                    self.transformar_runa_em_inimigo(coluna_sprite, linha_sprite)
                     print(f"Ativou uma runa! Golem apareceu!")
-                    # ---------------------------------------------------------------
                     
                     if self.sistema_combate:
                         self.sistema_combate.iniciar_combate(nome_inimigo='golem')
                 else:
-                    # ---------------------------------------------------------------
                     print(f"Ativou a runa final! Venceu!")
-                    # ---------------------------------------------------------------
         else:
             if esta_movendo:
                 self._esta_ativando_runa = False
                 self._temporizador_ativacao = 0.0
     
-    def _atualizar_entrada_passagem(self, tempo_decorrido, pe_x, pe_y, coluna_pe, linha_pe, quadriculo_pe, esta_movendo):
+    def _atualizar_entrada_passagem(self, tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, quadriculo_sprite, esta_movendo):
         if esta_movendo:
             self._esta_entrando_na_passagem = False
             self._temporizador_entrada = 0.0
-            # ---------------------------------------------------------------
             self._ja_printou_passagem = False
-            # ---------------------------------------------------------------
             return
         
-        eh_passagem = quadriculo_pe and getattr(quadriculo_pe, 'eh_passagem', False)
-        tem_sobreposicao = quadriculo_pe and quadriculo_pe.tem_sobreposicao()
+        eh_passagem = quadriculo_sprite and getattr(quadriculo_sprite, 'eh_passagem', False)
+        tem_sobreposicao = quadriculo_sprite and quadriculo_sprite.tem_sobreposicao()
         esta_no_centro = False
 
         if eh_passagem and tem_sobreposicao:
-            centro_x = (coluna_pe * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
-            centro_y = (linha_pe * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
-            distancia = ((pe_x - centro_x)**2 + (pe_y - centro_y)**2)**0.5
-            if distancia < 15:
+            centro_x = (coluna_sprite * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
+            centro_y = (linha_sprite * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
+            distancia = ((posicao_base_sprite_x - centro_x)**2 + (posicao_base_sprite_y - centro_y)**2)**0.5
+            if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_runa', 15):
                 esta_no_centro = True
-                # ---------------------------------------------------------------
                 if not self._ja_printou_passagem:
                     print(f"Passagem encontrada! Pressione parado para entrar...")
                     self._ja_printou_passagem = True
-                # ---------------------------------------------------------------
 
         if esta_no_centro:
             self._esta_entrando_na_passagem = True
@@ -154,15 +142,11 @@ class MecanicasCaverna:
                 self.solicitacao_transicao = True
                 self._temporizador_entrada = 0.0
                 self._esta_entrando_na_passagem = False
-                # ---------------------------------------------------------------
                 self._ja_printou_passagem = False
-                # ---------------------------------------------------------------
         else:
             self._esta_entrando_na_passagem = False
             self._temporizador_entrada = 0.0
-            # ---------------------------------------------------------------
             self._ja_printou_passagem = False
-            # ---------------------------------------------------------------
     
     def transformar_runa_em_inimigo(self, coluna, linha):
         from PPlay.sprite import Sprite
@@ -216,6 +200,4 @@ class MecanicasCaverna:
         self._esta_entrando_na_passagem = False
         self._temporizador_entrada = 0.0
         self.solicitacao_transicao = False
-        # ---------------------------------------------------------------
         self._ja_printou_passagem = False
-        # ---------------------------------------------------------------

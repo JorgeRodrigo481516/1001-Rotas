@@ -52,7 +52,6 @@ def inicializar_recursos_jogo():
         mapa_deserto.construir(tipo='DESERTO')
     else:
         mapa_deserto.resetar_estado()
-
     if mapa_caverna is not None:
         mapa_caverna.resetar_estado()
 
@@ -67,12 +66,10 @@ def inicializar_recursos_jogo():
     jogador.mecanicas_caverna = controlador_mecanicas_caverna
 
 inicializar_recursos_jogo()
-# ---------------------------------------------------------------
 print("Jogo iniciado!")
 posicao_passagem = mapa_deserto.obter_posicao_passagem()
 if posicao_passagem:
     print(f"Passagem em: coluna {posicao_passagem[0]}, linha {posicao_passagem[1]}")
-# ---------------------------------------------------------------
 
 while True:
     janela.set_background_color(config.CORES['fundo_janela'])
@@ -92,12 +89,10 @@ while True:
 
         if interface.verificar_se_jogador_morreu() and not janela_fim_jogo.esta_visivel and not combate.combate_ativo:
             janela_fim_jogo.aguardar_clique_apos_morte()
-            # ---------------------------------------------------------------
             if interface.sede >= config.JOGABILIDADE['max_sede']:
                 print("Morreu de sede!")
             else:
                 print("Morreu queimado pelo sol!")
-            # ---------------------------------------------------------------
 
         if combate.combate_ativo:
             combate.atualizar(tempo_decorrido, mouse_entrada)
@@ -118,15 +113,11 @@ while True:
                     
                     mapa_ativo = mapa_caverna
                     interface.definir_multiplicador_custo(config.JOGABILIDADE['multiplicador_custo_caverna'])
-                    # ---------------------------------------------------------------
                     print("Entrou na caverna!")
-                    # ---------------------------------------------------------------
                 else:
                     mapa_ativo = mapa_deserto
                     interface.definir_multiplicador_custo(1.0)
-                    # ---------------------------------------------------------------
                     print("Voltou ao deserto!")
-                    # ---------------------------------------------------------------
                 
                 jogador.mapa = mapa_ativo
                 controlador_mecanicas_caverna.mapa = mapa_ativo

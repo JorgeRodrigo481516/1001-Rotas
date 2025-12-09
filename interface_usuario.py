@@ -52,10 +52,7 @@ class InterfaceUsuario:
 
         self.imagens_preenchimento = []
         for caminho in imagens_preenchimento:
-            try:
-                imagem = Sprite(caminho) if caminho is not None else None
-            except Exception:
-                imagem = None
+            imagem = self._carregar_sprite_segura(caminho)
             self.imagens_preenchimento.append(imagem)
 
         self._mensagem_sede = ""
@@ -74,16 +71,10 @@ class InterfaceUsuario:
         self.fundo_leitura = Sprite(config.RECURSOS['fundo_leitura'])
         self.fundo_leitura.x = (self.janela.width - self.fundo_leitura.width) / 2
         self.fundo_leitura.y = (self.janela.height - self.fundo_leitura.height) / 2
-        try:
-            caminho_back = config.RECURSOS.get('botao_back')
-            self.botao_back = Sprite(caminho_back) if caminho_back else None
-        except Exception:
-            self.botao_back = None
-        try:
-            caminho_next = config.RECURSOS.get('botao_next')
-            self.botao_next = Sprite(caminho_next) if caminho_next else None
-        except Exception:
-            self.botao_next = None
+        caminho_back = config.RECURSOS.get('botao_back')
+        self.botao_back = self._carregar_sprite_segura(caminho_back)
+        caminho_next = config.RECURSOS.get('botao_next')
+        self.botao_next = self._carregar_sprite_segura(caminho_next)
 
         self._clique_pergaminho_processado = False
 
@@ -118,12 +109,20 @@ class InterfaceUsuario:
         y_espacos = (altura_painel - altura_espaco) / 2
 
         self.espacos_inventario = [Sprite(config.RECURSOS['espaco_inventario']) for _ in range(contagem_espacos)]
-        for i, espaco_atual in enumerate(self.espacos_inventario):
-            espaco_atual.x = x_espacos + i * largura_espaco
+        for indice_espaco, espaco_atual in enumerate(self.espacos_inventario):
+            espaco_atual.x = x_espacos + indice_espaco * largura_espaco
             espaco_atual.y = y_espacos
         self.sobreposicoes_espacos = [None for _ in range(contagem_espacos)]
         self.nomes_itens = [None for _ in range(contagem_espacos)]
         self.usos_itens = [None for _ in range(contagem_espacos)]
+
+    def _carregar_sprite_segura(self, caminho):
+        if not caminho:
+            return None
+        try:
+            return Sprite(caminho)
+        except Exception:
+            return None
 
     def definir_valores(self, sede=None, sol=None):
         if sede is not None:
@@ -186,9 +185,9 @@ class InterfaceUsuario:
             self.desenhar_popup_leitura()
 
     def desenhar_inventario_pergaminhos(self):
-        for i, espaco_atual in enumerate(self.espacos_inventario):
+        for indice_espaco, espaco_atual in enumerate(self.espacos_inventario):
             espaco_atual.draw()
-            if i in self.pergaminhos_coletados:
+            if indice_espaco in self.pergaminhos_coletados:
                 self.imagem_pergaminho.x = espaco_atual.x + (espaco_atual.width - self.imagem_pergaminho.width) / 2
                 self.imagem_pergaminho.y = espaco_atual.y + (espaco_atual.height - self.imagem_pergaminho.height) / 2
                 self.imagem_pergaminho.draw()
@@ -345,49 +344,47 @@ class InterfaceUsuario:
         return False
 
     def adicionar_item(self, caminho_imagem, nome_item=None):
-        for i, sobreposicao in enumerate(self.sobreposicoes_espacos):
+        for indice_slot, sobreposicao in enumerate(self.sobreposicoes_espacos):
             if sobreposicao is None:
                 imagem = Sprite(caminho_imagem)
-                espaco = self.espacos_inventario[i]
+                espaco = self.espacos_inventario[indice_slot]
                 imagem.x = espaco.x + (espaco.width - imagem.width) / 2
                 imagem.y = espaco.y + (espaco.height - imagem.height) / 2
-                self.sobreposicoes_espacos[i] = imagem
-                self.nomes_itens[i] = nome_item
+                self.sobreposicoes_espacos[indice_slot] = imagem
+                self.nomes_itens[indice_slot] = nome_item
                 if nome_item == 'pa':
-                    self.usos_itens[i] = config.JOGABILIDADE.get('usos_pa', None)
+                    self.usos_itens[indice_slot] = config.JOGABILIDADE.get('usos_pa', None)
                 elif nome_item == 'faca':
-                    self.usos_itens[i] = config.JOGABILIDADE.get('usos_faca', None)
+                    self.usos_itens[indice_slot] = config.JOGABILIDADE.get('usos_faca', None)
                 else:
-                    self.usos_itens[i] = None
-                # ---------------------------------------------------------------
+                    self.usos_itens[indice_slot] = None
                 item_nome = nome_item.upper() if nome_item else "item"
                 print(f"Pegou: {item_nome}")
-                # ---------------------------------------------------------------
                 return True
         return False
 
-    def usar_item(self, indice):
-        if indice < 0 or indice >= len(self.sobreposicoes_espacos):
+    def usar_item(self, indice_slot):
+        if indice_slot < 0 or indice_slot >= len(self.sobreposicoes_espacos):
             return False
-        if self.sobreposicoes_espacos[indice] is None:
+        if self.sobreposicoes_espacos[indice_slot] is None:
             return False
-        nome = self.nomes_itens[indice]
-        if nome in ('pa', 'faca') and self.usos_itens[indice] is not None:
-            usos_restantes = self.usos_itens[indice]
+        nome = self.nomes_itens[indice_slot]
+        if nome in ('pa', 'faca') and self.usos_itens[indice_slot] is not None:
+            usos_restantes = self.usos_itens[indice_slot]
             if usos_restantes > 1:
-                self.usos_itens[indice] = usos_restantes - 1
-                print(f"Usou {nome}. Usos restantes: {self.usos_itens[indice]}")
+                self.usos_itens[indice_slot] = usos_restantes - 1
+                print(f"Usou {nome}. Usos restantes: {self.usos_itens[indice_slot]}")
                 return True
             else:
-                self.usos_itens[indice] = None
-                self.sobreposicoes_espacos[indice] = None
-                self.nomes_itens[indice] = None
+                self.usos_itens[indice_slot] = None
+                self.sobreposicoes_espacos[indice_slot] = None
+                self.nomes_itens[indice_slot] = None
                 print(f"{nome.upper()} quebrou/acabou e foi removida do inventário.")
                 return True
 
-        self.sobreposicoes_espacos[indice] = None
-        self.nomes_itens[indice] = None
-        self.usos_itens[indice] = None
+        self.sobreposicoes_espacos[indice_slot] = None
+        self.nomes_itens[indice_slot] = None
+        self.usos_itens[indice_slot] = None
         return True
 
     def tem_item(self, nome_item):
@@ -395,33 +392,33 @@ class InterfaceUsuario:
 
     def consumir_uso_por_nome(self, nome_item):
         try:
-            indice = self.nomes_itens.index(nome_item)
+            indice_encontrado = self.nomes_itens.index(nome_item)
         except ValueError:
             return False
 
-        usos = self.usos_itens[indice]
+        usos = self.usos_itens[indice_encontrado]
         if usos is None:
-            self.sobreposicoes_espacos[indice] = None
-            self.nomes_itens[indice] = None
-            self.usos_itens[indice] = None
+            self.sobreposicoes_espacos[indice_encontrado] = None
+            self.nomes_itens[indice_encontrado] = None
+            self.usos_itens[indice_encontrado] = None
             return True
 
         if usos > 1:
-            self.usos_itens[indice] = usos - 1
-            print(f"Consumiu uso de {nome_item}. Usos restantes: {self.usos_itens[indice]}")
+            self.usos_itens[indice_encontrado] = usos - 1
+            print(f"Consumiu uso de {nome_item}. Usos restantes: {self.usos_itens[indice_encontrado]}")
             return True
         else:
-            self.sobreposicoes_espacos[indice] = None
-            self.nomes_itens[indice] = None
-            self.usos_itens[indice] = None
+            self.sobreposicoes_espacos[indice_encontrado] = None
+            self.nomes_itens[indice_encontrado] = None
+            self.usos_itens[indice_encontrado] = None
             print(f"{nome_item.upper()} quebrou/acabou e foi removida do inventário.")
             return True
 
     def remover_item(self, nome_item):
         try:
-            indice = self.nomes_itens.index(nome_item)
-            self.sobreposicoes_espacos[indice] = None
-            self.nomes_itens[indice] = None
+            indice_encontrado = self.nomes_itens.index(nome_item)
+            self.sobreposicoes_espacos[indice_encontrado] = None
+            self.nomes_itens[indice_encontrado] = None
             return True
         except ValueError:
             return False
@@ -437,9 +434,7 @@ class InterfaceUsuario:
             recuperacao = config.JOGABILIDADE['recuperacao_sede_beber']
             self.definir_valores(sede=self.sede - recuperacao)
             self.exibir_mensagem('sede', f"-{recuperacao}", duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
-            # ---------------------------------------------------------------
             print(f"Bebeu agua!")
-            # ---------------------------------------------------------------
             return True
         return False
 
@@ -450,9 +445,7 @@ class InterfaceUsuario:
         self.definir_valores(sede=self.sede + custo_sede, sol=self.sol + custo_sol)
         self.exibir_mensagem('sede', f'+{custo_sede}', duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
         self.exibir_mensagem('sol', f'+{custo_sol}', duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
-        # ---------------------------------------------------------------
         print(f"Investigando... Sede {self.sede}, Sol {self.sol}")
-        # ---------------------------------------------------------------
     def verificar_se_jogador_morreu(self):
         return self.sede >= config.JOGABILIDADE['max_sede'] or self.sol >= config.JOGABILIDADE['max_sol']
 
@@ -540,8 +533,8 @@ class InterfaceUsuario:
         self.recuperar_sede_escavacao()
         
         if isinstance(item_encontrado, tuple) and item_encontrado[0] == 'pergaminho':
-            indice = item_encontrado[1]
-            if indice is None:
+            indice_pergaminho = item_encontrado[1]
+            if indice_pergaminho is None:
                 if len(self.pergaminhos_coletados) < config.JOGABILIDADE['quantidade_pergaminhos']:
                     novo_id = len(self.pergaminhos_coletados)
                     self.pergaminhos_coletados.append(novo_id)
@@ -551,10 +544,10 @@ class InterfaceUsuario:
                 else:
                     return 'sucesso_sem_item'
 
-            if 0 <= indice < config.JOGABILIDADE['quantidade_pergaminhos']:
-                if indice not in self.pergaminhos_coletados:
-                    self.pergaminhos_coletados.append(indice)
-                    print(f"Pergaminho #{indice + 1} encontrado! (slot fixo)")
+            if 0 <= indice_pergaminho < config.JOGABILIDADE['quantidade_pergaminhos']:
+                if indice_pergaminho not in self.pergaminhos_coletados:
+                    self.pergaminhos_coletados.append(indice_pergaminho)
+                    print(f"Pergaminho #{indice_pergaminho + 1} encontrado! (slot fixo)")
                     self.alternar_modo_inventario('pergaminhos')
                     return 'pergaminho_encontrado'
                 else:

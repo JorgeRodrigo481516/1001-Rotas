@@ -70,7 +70,7 @@ class Jogador:
         self._temporizador_ativacao = 0.0
         
         self._tempo_parado = 0.0
-        self._tempo_para_ativar_foco = 0.5
+        self._tempo_para_ativar_foco = config.JOGABILIDADE.get('tempo_para_ativar_foco', 0.5)
         
         self.sistema_foco_ativo = False
         self.tecla_f_pressionada = False

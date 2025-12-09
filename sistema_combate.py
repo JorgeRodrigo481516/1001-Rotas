@@ -50,7 +50,7 @@ class SistemaCombate:
         self.inimigo_atual = None
         self.turnos_imunidade = 0
         self.temporizador_mensagem = 0
-        self.clique_processado = False
+        self.clique_ja_processado = False
         
         self.dados_inimigos = {
             'tempestade': {'imagem': self.imagem_tempestade, 'dano_base': config.COMBATE['dano_base_tempestade']},
@@ -126,11 +126,9 @@ class SistemaCombate:
         nome_exibicao = tipo_inimigo.capitalize()
         self.mensagens = [(f"Um {nome_exibicao} apareceu...", config.CORES['branco'])]
         self.temporizador_mensagem = config.COMBATE['tempo_mensagem_curto']
-        # ---------------------------------------------------------------
         print(f"Apareceu um inimigo! {nome_exibicao}")
-        # ---------------------------------------------------------------
         
-        self.clique_processado = False
+        self.clique_ja_processado = False
         self.encerrando_combate = False
         self.temporizador_encerramento = 0.0
 
@@ -151,8 +149,8 @@ class SistemaCombate:
             return
 
         if dispositivo_mouse.is_button_pressed(1):
-            if not self.clique_processado:
-                self.clique_processado = True
+            if not self.clique_ja_processado:
+                self.clique_ja_processado = True
                 acao_realizada = False
                 
                 if dispositivo_mouse.is_over_object(self.botao_atacar):
@@ -173,7 +171,7 @@ class SistemaCombate:
                 if acao_realizada and self.combate_ativo:
                     self._turno_inimigo()
         else:
-            self.clique_processado = False
+            self.clique_ja_processado = False
 
     def _calcular_resultado_dado(self, usar_faca=True):
         bonus_faca_combate = config.JOGABILIDADE['bonus_combate_faca'] if (usar_faca and self.interface.tem_item('faca')) else 0

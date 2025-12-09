@@ -117,11 +117,9 @@ class Mapa:
             novo_foco = self.dicionario_quadriculos_por_coordenada[(coluna, linha)]
             novo_foco.definir_foco(True)
             self.quadriculo_focado = novo_foco
-            # ---------------------------------------------------------------
             item = novo_foco.item if novo_foco.item else 'Nenhum'
             passagem = 'Sim' if novo_foco.eh_passagem else 'Não'
             print(f"Foco ativado em: coluna {coluna}, linha {linha}, item: {item}, passagem: {passagem}")
-            # ---------------------------------------------------------------
 
     def construir(self, tipo='DESERTO', posicao_passagem_anterior=None):
         self.tipo = tipo
@@ -178,40 +176,39 @@ class Mapa:
 
         lista_itens = ['agua'] * quantidade_agua + ['pa'] * quantidade_pa + ['faca'] * quantidade_faca
 
-        quadriculos_elegiveis = [q for q in self.lista_quadriculos if q.indice_variacao_terreno in (1, 2)] if self.tipo == 'CAVERNA' else list(self.lista_quadriculos)
+        quadriculos_elegiveis = [quadriculo for quadriculo in self.lista_quadriculos if quadriculo.indice_variacao_terreno in (1, 2)] if self.tipo == 'CAVERNA' else list(self.lista_quadriculos)
         random.shuffle(quadriculos_elegiveis)
 
         self.posicoes_pergaminhos = []
         if self.tipo == 'DESERTO':
             num_perg = config.JOGABILIDADE.get('quantidade_pergaminhos', 0)
             if num_perg > 0:
-                min_col = min(q.indice_coluna for q in self.lista_quadriculos)
-                max_col = max(q.indice_coluna for q in self.lista_quadriculos)
-                min_lin = min(q.indice_linha for q in self.lista_quadriculos)
-                max_lin = max(q.indice_linha for q in self.lista_quadriculos)
+                min_col = min(quadriculo.indice_coluna for quadriculo in self.lista_quadriculos)
+                max_col = max(quadriculo.indice_coluna for quadriculo in self.lista_quadriculos)
+                min_lin = min(quadriculo.indice_linha for quadriculo in self.lista_quadriculos)
+                max_lin = max(quadriculo.indice_linha for quadriculo in self.lista_quadriculos)
 
-                candidato_pergs = [q for q in quadriculos_elegiveis
-                                   if (q.indice_coluna >= (min_col + 2) and q.indice_coluna <= (max_col - 2)
-                                       and q.indice_linha >= (min_lin + 2) and q.indice_linha <= (max_lin - 2))]
+                candidato_pergs = [quadriculo for quadriculo in quadriculos_elegiveis
+                                   if (quadriculo.indice_coluna >= (min_col + 2) and quadriculo.indice_coluna <= (max_col - 2)
+                                       and quadriculo.indice_linha >= (min_lin + 2) and quadriculo.indice_linha <= (max_lin - 2))]
 
                 if len(candidato_pergs) < num_perg:
                     random.shuffle(quadriculos_elegiveis)
-                    candidato_pergs = [q for q in quadriculos_elegiveis if q not in candidato_pergs]
-                    candidato_pergs = list({q: None for q in (candidato_pergs + quadriculos_elegiveis)}.keys())
+                    candidato_pergs = [quadriculo for quadriculo in quadriculos_elegiveis if quadriculo not in candidato_pergs]
+                    candidato_pergs = list({quadriculo: None for quadriculo in (candidato_pergs + quadriculos_elegiveis)}.keys())
 
                 random.shuffle(candidato_pergs)
                 selecionados = candidato_pergs[:num_perg]
-                for q in selecionados:
-                    q.item = 'pergaminho'
-                    self.posicoes_pergaminhos.append((q.indice_coluna, q.indice_linha))
+                for quadriculo in selecionados:
+                    quadriculo.item = 'pergaminho'
+                    self.posicoes_pergaminhos.append((quadriculo.indice_coluna, quadriculo.indice_linha))
 
 
-        quadriculos_vazios = [q for q in quadriculos_elegiveis if q.item is None]
+        quadriculos_vazios = [quadriculo for quadriculo in quadriculos_elegiveis if quadriculo.item is None]
         random.shuffle(quadriculos_vazios)
-
-        for i, item in enumerate(lista_itens):
-            if i < len(quadriculos_vazios):
-                quadriculos_vazios[i].item = item
+        for indice_item, item in enumerate(lista_itens):
+            if indice_item < len(quadriculos_vazios):
+                quadriculos_vazios[indice_item].item = item
             else:
                 break
 
@@ -222,8 +219,8 @@ class Mapa:
         if not self.lista_quadriculos: return
         
         candidatos = [
-            q for q in self.lista_quadriculos 
-            if 0 < q.indice_coluna < num_colunas - 1 and linha_inicio < q.indice_linha < num_linhas - 1
+            quadriculo for quadriculo in self.lista_quadriculos 
+            if 0 < quadriculo.indice_coluna < num_colunas - 1 and linha_inicio < quadriculo.indice_linha < num_linhas - 1
         ]
         
         quadriculo_passagem = random.choice(candidatos) if candidatos else random.choice(self.lista_quadriculos)
@@ -270,18 +267,18 @@ class Mapa:
 
     def _posicionar_runas(self, linha_inicio, num_linhas, num_colunas, coordenadas_livres, mapa_variacoes):
         candidatos = [
-            c for c in coordenadas_livres 
-            if 0 < c[0] < num_colunas - 1 and linha_inicio < c[1] < num_linhas - 1
+            coordenada for coordenada in coordenadas_livres 
+            if 0 < coordenada[0] < num_colunas - 1 and linha_inicio < coordenada[1] < num_linhas - 1
         ]
         random.shuffle(candidatos)
         
         posicoes_runas = []
         for _ in range(min(config.JOGABILIDADE['quantidade_runas_caverna'], len(candidatos))):
-            coord = candidatos.pop()
-            if coord in coordenadas_livres:
-                coordenadas_livres.remove(coord)
-                mapa_variacoes[coord] = config.TIPO_TERRENO_RUNA
-                posicoes_runas.append(coord)
+            coordenada = candidatos.pop()
+            if coordenada in coordenadas_livres:
+                coordenadas_livres.remove(coordenada)
+                mapa_variacoes[coordenada] = config.TIPO_TERRENO_RUNA
+                posicoes_runas.append(coordenada)
         
         self.posicao_runa_final = random.choice(posicoes_runas) if posicoes_runas else None
 
@@ -291,23 +288,23 @@ class Mapa:
         quantidade_variacao_2 = int(total_quadriculos * config.JOGABILIDADE['percentual_variacao_2_caverna'])
         coordenadas_variacao_2 = []
         for _ in range(min(quantidade_variacao_2, len(coordenadas_livres))):
-            coord = coordenadas_livres.pop()
-            mapa_variacoes[coord] = 2
-            coordenadas_variacao_2.append(coord)
+            coordenada = coordenadas_livres.pop()
+            mapa_variacoes[coordenada] = 2
+            coordenadas_variacao_2.append(coordenada)
             
         quantidade_variacao_3 = int(total_quadriculos * config.JOGABILIDADE['percentual_variacao_3_caverna'])
         conjunto_variacao_2 = set(coordenadas_variacao_2)
         candidatos_variacao_3 = [
-            c for c in coordenadas_livres 
-            if any((c[0]+deslocamento_x, c[1]+deslocamento_y) in conjunto_variacao_2 for deslocamento_x, deslocamento_y in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)])
+            coordenada for coordenada in coordenadas_livres 
+            if any((coordenada[0]+deslocamento_x, coordenada[1]+deslocamento_y) in conjunto_variacao_2 for deslocamento_x, deslocamento_y in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)])
         ]
         random.shuffle(candidatos_variacao_3)
         
         contagem = 0
         while contagem < quantidade_variacao_3 and (candidatos_variacao_3 or coordenadas_livres):
-            coord = candidatos_variacao_3.pop() if candidatos_variacao_3 else coordenadas_livres.pop()
-            if coord in coordenadas_livres: coordenadas_livres.remove(coord) 
-            mapa_variacoes[coord] = config.TIPO_TERRENO_PAREDE
+            coordenada = candidatos_variacao_3.pop() if candidatos_variacao_3 else coordenadas_livres.pop()
+            if coordenada in coordenadas_livres: coordenadas_livres.remove(coordenada) 
+            mapa_variacoes[coordenada] = config.TIPO_TERRENO_PAREDE
             contagem += 1
 
         quantidade_variacao_4 = int(total_quadriculos * config.JOGABILIDADE['percentual_variacao_4_caverna'])
@@ -383,12 +380,10 @@ class Mapa:
         self._temporizador_escavacao = 0.0
 
         if quadriculo:
-            if (quadriculo.item == 'pa' and tem_pa) or (quadriculo.item == 'faca' and tem_faca):
-                item = f"{quadriculo.item}_duplicada"
-                # ---------------------------------------------------------------
-                print(f"Ja tem {quadriculo.item} no inventario")
-                # ---------------------------------------------------------------S
-                return concluido, sucesso, item, dado
+                if (quadriculo.item == 'pa' and tem_pa) or (quadriculo.item == 'faca' and tem_faca):
+                    item = f"{quadriculo.item}_duplicada"
+                    print(f"Ja tem {quadriculo.item} no inventario")
+                    return concluido, sucesso, item, dado
 
         bonus_dado = config.JOGABILIDADE['bonus_escavacao_pa'] if tem_pa else 0
         dado_bruto = random.randint(0, config.JOGABILIDADE['dado_escavacao'])
@@ -400,7 +395,6 @@ class Mapa:
             adicionado = self.marcar_quadriculo_escavado_em(coluna, linha, caminho_imagem)
 
             if adicionado and quadriculo:
-                # ---------------------------------------------------------------
                 item = quadriculo.item
                 item_display = item.upper() if item else "nada"
                 print(f"Escavacao conseguiu! Dado: {dado_bruto}+{bonus_dado} vs {config.JOGABILIDADE['dificuldade_escavacao']}")
@@ -413,7 +407,6 @@ class Mapa:
                         indice = None
                     self._imprimir_dica_proximo_pergaminho(coluna, linha)
                     item = ('pergaminho', indice)
-                # ---------------------------------------------------------------
                 
         return concluido, sucesso, item, dado
 
@@ -434,52 +427,6 @@ class Mapa:
             return 0.0
         duracao = getattr(self, '_duracao_atual', self._duracao_escavacao)
         return min(1.0, self._temporizador_escavacao / max(1e-6, duracao))
-
-    def iniciar_investigacao(self, coluna_centro, linha_centro):
-        if self._escavando or self._investigando:
-            return False
-        
-        self._investigando = True
-        self._tempo_investigacao = 0.0
-        self._fila_mensagens = []
-        # ---------------------------------------------------------------
-        print(f"Investigando em ({coluna_centro}, {linha_centro})")
-        # ---------------------------------------------------------------
-        
-        ordem_leitura = [
-            (-1, -1), (0, -1), (1, -1),
-            (-1, 0), (0, 0), (1, 0),
-            (-1, 1), (0, 1), (1, 1)
-        ]
-
-        tempo_acumulado = config.JOGABILIDADE['atraso_inicial_investigacao']
-        
-        for variacao_x, variacao_y in ordem_leitura:
-            nome_posicao = config.MENSAGENS['investigacao_direcoes'].get((variacao_x, variacao_y), "")
-            
-            if variacao_x == 0 and variacao_y == 0:
-                dificuldade = config.JOGABILIDADE['dificuldade_investigacao_centro']
-            elif variacao_x == 0 or variacao_y == 0:
-                dificuldade = config.JOGABILIDADE['dificuldade_investigacao_ortogonal']
-            else:
-                dificuldade = config.JOGABILIDADE['dificuldade_investigacao_diagonal']
-
-            coluna = coluna_centro + variacao_x
-            linha = linha_centro + variacao_y
-            
-            mensagem = self._processar_celula_investigacao(coluna, linha, nome_posicao, dificuldade)
-            
-            inicio = tempo_acumulado
-            fim = tempo_acumulado + config.JOGABILIDADE['tempo_mensagem_investigacao']
-            self._fila_mensagens.append((inicio, fim, mensagem))
-            
-            tempo_acumulado = fim + config.JOGABILIDADE['intervalo_entre_mensagens']
-
-        tempo_acumulado -= config.JOGABILIDADE['intervalo_entre_mensagens']
-        tempo_acumulado += config.JOGABILIDADE['atraso_final_investigacao']
-        
-        self._duracao_total_investigacao = tempo_acumulado
-        return True
 
     def _processar_celula_investigacao(self, coluna, linha, nome_posicao, dificuldade):
         quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
@@ -506,6 +453,43 @@ class Mapa:
             item=nome_item,
             chance=chance
         )
+
+    def iniciar_investigacao(self, coluna, linha):
+        if self._investigando:
+            return False
+
+        if (coluna, linha) not in self.dicionario_quadriculos_por_coordenada:
+            return False
+
+        direcoes = config.MENSAGENS.get('investigacao_direcoes', {})
+        intervalo = config.JOGABILIDADE.get('intervalo_entre_mensagens', 0.3)
+        duracao_mensagem = config.JOGABILIDADE.get('tempo_mensagem_investigacao', 2.0)
+        atraso_inicial = config.JOGABILIDADE.get('atraso_inicial_investigacao', 1.0)
+        atraso_final = config.JOGABILIDADE.get('atraso_final_investigacao', 1.0)
+
+        fila = []
+        tempo_atual = atraso_inicial
+
+        for (dx, dy), nome_posicao in direcoes.items():
+            dificuldade = config.JOGABILIDADE.get('dificuldade_investigacao_ortogonal', 10)
+            if dx == 0 and dy == 0:
+                dificuldade = config.JOGABILIDADE.get('dificuldade_investigacao_centro', 5)
+            elif abs(dx) == 1 and abs(dy) == 1:
+                dificuldade = config.JOGABILIDADE.get('dificuldade_investigacao_diagonal', 15)
+
+            mensagem = self._processar_celula_investigacao(coluna + dx, linha + dy, nome_posicao, dificuldade)
+            inicio = tempo_atual
+            fim = inicio + duracao_mensagem
+            fila.append((inicio, fim, mensagem))
+            tempo_atual = fim + intervalo
+
+        duracao_total = tempo_atual + atraso_final
+
+        self._investigando = True
+        self._fila_mensagens = fila
+        self._tempo_investigacao = 0.0
+        self._duracao_total_investigacao = duracao_total
+        return True
 
     def atualizar_investigacao(self, tempo_decorrido):
         if not self._investigando:
