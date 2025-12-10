@@ -21,6 +21,7 @@ NOTAS DE IMPLEMENTAÇÃO:
 -------------------------------------------------------------------
 """
 from PPlay.window import Window
+from PPlay.sound import Sound as Som
 
 from mapa import Mapa
 from jogador import Jogador
@@ -33,6 +34,26 @@ from mecanicas_caverna import MecanicasCaverna
 
 janela = Window(config.LARGURA_JANELA, config.ALTURA_JANELA)
 janela.set_title("1001 Rotas")
+
+# --- Trilha sonora de fundo (reprodução durante todo o jogo)
+trilha_sonora = None
+CAMINHO_TRILHA = "assets/trilha.mp3"
+
+def iniciar_trilha_sonora():
+    """Carrega e inicia a trilha sonora em loop. Não reinicia se já estiver tocando."""
+    global trilha_sonora
+    if trilha_sonora is not None:
+        return
+    try:
+        trilha_sonora = Som(CAMINHO_TRILHA)
+        trilha_sonora.set_repeat(True)
+        # Volume inicial em 30% (0-100)
+        trilha_sonora.set_volume(30)
+        trilha_sonora.play()
+        print("Trilha sonora iniciada:", CAMINHO_TRILHA)
+    except Exception as e:
+        print("Aviso: não foi possível iniciar a trilha sonora:", e)
+
 
 tela_morte = TelaMorte(janela)
 mouse_entrada = janela.get_mouse()
@@ -77,6 +98,7 @@ def inicializar_recursos_jogo():
     controlador_mecanicas_caverna = MecanicasCaverna(jogador, mapa_ativo, combate)
     jogador.mecanicas_caverna = controlador_mecanicas_caverna
 
+iniciar_trilha_sonora()
 inicializar_recursos_jogo()
 print("Jogo iniciado!")
 posicao_passagem = mapa_deserto.obter_posicao_passagem()
