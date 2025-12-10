@@ -24,6 +24,21 @@ import config
 
 
 class MecanicasCaverna:
+    """
+    DESCRIÇÃO:
+        Encapsula comportamentos específicos do ambiente de caverna (quedas, runas, passagens).
+
+    RESPONSABILIDADE:
+        - Detectar e processar quedas em buracos, ativação de runas e transições por passagens.
+        - Comunicar resultados (ex.: `morreu_por_queda`, `pedido_transicao_ambiente`) ao loop principal.
+
+    REGRAS DE USO:
+        - Instanciar com referências `jogador`, `mapa` e `sistema_combate`.
+        - Chamar `atualizar(tempo_decorrido, esta_movendo)` a cada frame quando o jogador estiver na caverna.
+
+    NOTAS DE IMPLEMENTAÇÃO:
+        - Usa cálculos de distância para determinar se o jogador está centrado em tiles especiais.
+    """
     def __init__(self, jogador, mapa, sistema_combate):
         self.jogador = jogador
         self.mapa = mapa
@@ -41,20 +56,33 @@ class MecanicasCaverna:
         self._esta_entrando_na_passagem = False
         self._temporizador_entrada = 0.0
         self._duracao_entrada = config.JOGABILIDADE['duracao_entrada_passagem']
-        self.solicitacao_transicao = False
+        self.pedido_transicao_ambiente = False
 
-        self._ja_printou_passagem = False
+        self._aviso_passagem_mostrado = False
     
     def atualizar(self, tempo_decorrido, esta_movendo):
-        largura_sprite = self.jogador.andar_direita_1.width
-        altura_sprite = self.jogador.andar_direita_1.height
+        """
+        DESCRIÇÃO:
+            Atualiza o estado das mecânicas da caverna (queda, ativação de runas, entrada em passagens).
+
+        RESPONSABILIDADE:
+            - Calcular posição do jogador em termos de quadriculo e delegar atualizações específicas.
+
+        REGRAS DE USO:
+            - Deve ser invocado a cada frame pelo `Jogador` ou loop principal.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Não retorna valores; altera flags internas e atributos observáveis pelo código externo.
+        """
+        largura_sprite = self.jogador.sprite_andar_direita_1.width
+        altura_sprite = self.jogador.sprite_andar_direita_1.height
         
         posicao_base_sprite_x = self.jogador.posicao_pixel_x + largura_sprite / 2
         posicao_base_sprite_y = self.jogador.posicao_pixel_y + altura_sprite
 
         coluna_sprite = int(posicao_base_sprite_x / self.mapa.largura_quadriculo)
         linha_sprite = int(posicao_base_sprite_y / self.mapa.altura_quadriculo)
-        quadriculo_sprite = self.mapa.obter_quadriculo_por_coordenada_grade(coluna_sprite, linha_sprite)
+        quadriculo_sprite = self.mapa.obter_quadriculo_por_coordenada(coluna_sprite, linha_sprite)
 
         self._atualizar_animacao_queda(tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo)
         self._atualizar_ativacao_runa(tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo)
@@ -76,7 +104,8 @@ class MecanicasCaverna:
             self._temporizador_queda += tempo_decorrido
             if self._temporizador_queda >= self._duracao_queda:
                 self.morreu_por_queda = True
-                interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Caiu em um buraco!') if interface else print('Caiu em um buraco!'))
+                interface_usuario = getattr(self.jogador, 'interface_usuario', None)
+                (interface_usuario.exibir_mensagem('sede','Caiu em um buraco!') if interface_usuario else print('Caiu em um buraco!'))
         else:
             self._esta_em_queda = False
             self._temporizador_queda = 0.0
@@ -84,41 +113,41 @@ class MecanicasCaverna:
     def _atualizar_ativacao_runa(self, tempo_decorrido, posicao_base_sprite_x, posicao_base_sprite_y, coluna_sprite, linha_sprite, esta_movendo):
         eh_runa = self.mapa.eh_runa(coluna_sprite, linha_sprite)
         esta_no_centro_runa = False
-        
         if eh_runa:
             centro_x = (coluna_sprite * self.mapa.largura_quadriculo) + (self.mapa.largura_quadriculo / 2)
             centro_y = (linha_sprite * self.mapa.altura_quadriculo) + (self.mapa.altura_quadriculo / 2)
             distancia = ((posicao_base_sprite_x - centro_x)**2 + (posicao_base_sprite_y - centro_y)**2)**0.5
-            if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_runa', 15): 
+            if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_runa', 15):
                 esta_no_centro_runa = True
 
-        if esta_no_centro_runa and not esta_movendo:
-            interface = getattr(self.jogador, 'interface', None)
-            if interface and getattr(interface, 'lendo_pergaminho', False):
-                return
-            self._esta_ativando_runa = True
-            self._temporizador_ativacao += tempo_decorrido
-            
-            if self._temporizador_ativacao >= self._duracao_ativacao:
-                self._temporizador_ativacao = 0.0
-                self._esta_ativando_runa = False
-                
-                posicao_atual = (coluna_sprite, linha_sprite)
-                if posicao_atual != self.mapa.posicao_runa_final:
-                    self.transformar_runa_em_inimigo(coluna_sprite, linha_sprite)
-                    interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Ativou uma runa! Golem apareceu!') if interface else print('Ativou uma runa! Golem apareceu!'))
-                    if self.sistema_combate:
-                        self.sistema_combate.iniciar_combate(nome_inimigo='golem')
-                else:
-                    interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Ativou a runa final! Venceu!') if interface else print('Ativou a runa final! Venceu!'))
-                    try:
-                        interface = getattr(self.jogador, 'interface', None)
-                        if interface:
-                            lista = getattr(interface, 'pergaminhos_coletados', [])
-                            indice_inicial = lista[0] if lista else 0
-                            interface.abrir_leitura(indice_inicial, referencia=True)
-                    except Exception:
-                        pass
+            if esta_no_centro_runa and not esta_movendo:
+                interface_usuario = getattr(self.jogador, 'interface_usuario', None)
+                if interface_usuario and getattr(interface_usuario, 'lendo_pergaminho', False):
+                    return
+                self._esta_ativando_runa = True
+                self._temporizador_ativacao += tempo_decorrido
+
+                if self._temporizador_ativacao >= self._duracao_ativacao:
+                    self._temporizador_ativacao = 0.0
+                    self._esta_ativando_runa = False
+
+                    posicao_atual = (coluna_sprite, linha_sprite)
+                    if posicao_atual != self.mapa.posicao_runa_final:
+                        self.transformar_runa_em_inimigo(coluna_sprite, linha_sprite)
+                        interface_usuario = getattr(self.jogador, 'interface_usuario', None)
+                        (interface_usuario.exibir_mensagem('sede', 'Ativou uma runa! Golem apareceu!') if interface_usuario else print('Ativou uma runa! Golem apareceu!'))
+                        if self.sistema_combate:
+                            self.sistema_combate.iniciar_combate(nome_inimigo='golem')
+                    else:
+                        interface_usuario = getattr(self.jogador, 'interface_usuario', None)
+                        (interface_usuario.exibir_mensagem('sede', 'Ativou a runa final! Venceu!') if interface_usuario else print('Ativou a runa final! Venceu!'))
+                        try:
+                            if interface_usuario:
+                                lista = getattr(interface_usuario, 'pergaminhos_coletados', [])
+                                indice_inicial = lista[0] if lista else 0
+                                interface_usuario.abrir_leitura(indice_inicial, referencia=True)
+                        except Exception:
+                            pass
         else:
             if esta_movendo:
                 self._esta_ativando_runa = False
@@ -128,9 +157,9 @@ class MecanicasCaverna:
         if esta_movendo:
             self._esta_entrando_na_passagem = False
             self._temporizador_entrada = 0.0
-            self._ja_printou_passagem = False
+            self._aviso_passagem_mostrado = False
             return
-        
+
         eh_passagem = quadriculo_sprite and getattr(quadriculo_sprite, 'eh_passagem', False)
         tem_sobreposicao = quadriculo_sprite and quadriculo_sprite.tem_sobreposicao()
         esta_no_centro = False
@@ -141,24 +170,38 @@ class MecanicasCaverna:
             distancia = ((posicao_base_sprite_x - centro_x)**2 + (posicao_base_sprite_y - centro_y)**2)**0.5
             if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_runa', 15):
                 esta_no_centro = True
-                if not self._ja_printou_passagem:
-                    interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Passagem encontrada! Pressione parado para entrar...') if interface else print('Passagem encontrada! Pressione parado para entrar...'))
-                    self._ja_printou_passagem = True
+                if not self._aviso_passagem_mostrado:
+                    interface_usuario = getattr(self.jogador, 'interface_usuario', None)
+                    (interface_usuario.exibir_mensagem('sede','Passagem encontrada! Pressione parado para entrar...') if interface_usuario else print('Passagem encontrada! Pressione parado para entrar...'))
+                    self._aviso_passagem_mostrado = True
 
         if esta_no_centro:
             self._esta_entrando_na_passagem = True
             self._temporizador_entrada += tempo_decorrido
             if self._temporizador_entrada >= self._duracao_entrada:
-                self.solicitacao_transicao = True
+                self.pedido_transicao_ambiente = True
                 self._temporizador_entrada = 0.0
                 self._esta_entrando_na_passagem = False
-                self._ja_printou_passagem = False
+                self._aviso_passagem_mostrado = False
         else:
             self._esta_entrando_na_passagem = False
             self._temporizador_entrada = 0.0
-            self._ja_printou_passagem = False
+            self._aviso_passagem_mostrado = False
     
     def transformar_runa_em_inimigo(self, coluna, linha):
+        """
+        DESCRIÇÃO:
+            Transforma a runa na posição indicada em um tile de inimigo (atualiza a imagem do quadriculo).
+
+        RESPONSABILIDADE:
+            - Delegar a transformação para o `Mapa` via `transformar_quadriculo_em_inimigo`.
+
+        REGRAS DE USO:
+            - Recebe coordenadas (coluna, linha) válidas dentro do mapa.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Não faz checagens extensas; assume que a posição contém uma runa válida quando chamada.
+        """
         self.mapa.transformar_quadriculo_em_inimigo(coluna, linha)
     
     def esta_caindo(self):
@@ -195,5 +238,5 @@ class MecanicasCaverna:
         
         self._esta_entrando_na_passagem = False
         self._temporizador_entrada = 0.0
-        self.solicitacao_transicao = False
-        self._ja_printou_passagem = False
+        self.pedido_transicao_ambiente = False
+        self._aviso_passagem_mostrado = False

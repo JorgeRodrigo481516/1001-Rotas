@@ -37,6 +37,20 @@ import random
 
 
 class Quadriculo:
+    """
+    DESCRIÇÃO:
+        Representa um tile (quadriculo) do mapa, armazenando sua imagem, sobreposições e estado.
+
+    RESPONSABILIDADE:
+        - Desenhar seu próprio sprite e sobreposições.
+        - Controlar foco visual e permitir marcação de sobreposições (ex.: escavação, passagem).
+
+    REGRAS DE USO:
+        - Criado pelo `Mapa` durante a construção da grade; não deveria ser instanciado diretamente em outro lugar.
+
+    NOTAS DE IMPLEMENTAÇÃO:
+        - Contém atributos simples: `imagem_quadriculo`, `imagem_sobreposicao`, `item` e flag `eh_passagem`.
+    """
     def __init__(self, imagem_quadriculo, indice_coluna, indice_linha, indice_variacao_terreno=1):
         self.imagem_quadriculo = imagem_quadriculo
         self.indice_coluna = indice_coluna
@@ -78,6 +92,21 @@ class Quadriculo:
         return True
 
 class Mapa:
+    """
+    DESCRIÇÃO:
+        Gerencia a estrutura de tiles do jogo (grade de `Quadriculo`), geração, escavação e investigação.
+
+    RESPONSABILIDADE:
+        - Construir mapas para ambientes (DESERTO, CAVERNA) e distribuir itens e runas.
+        - Fornecer métodos para iniciar e atualizar escavação/investigação e desenhar o mapa.
+
+    REGRAS DE USO:
+        - Chamar `construir()` após instanciar para popular a grade.
+        - Usar `atualizar_escavacao()` e `atualizar_investigacao()` durante o loop de jogo quando ações estiverem ativas.
+
+    NOTAS DE IMPLEMENTAÇÃO:
+        - A construção da caverna possui etapas de reserva de espaço e posicionamento de runas/passarens.
+    """
     def __init__(self, janela, largura_quadriculo=None, altura_quadriculo=None):
         self.janela = janela
         self.largura_quadriculo = largura_quadriculo
@@ -122,6 +151,19 @@ class Mapa:
             print(f"Foco ativado em: coluna {coluna}, linha {linha}, item: {item}, passagem: {passagem}")
 
     def construir(self, tipo='DESERTO', posicao_passagem_anterior=None):
+        """
+        DESCRIÇÃO:
+            Constrói a grade de quadriculos para o tipo de mapa especificado.
+
+        RESPONSABILIDADE:
+            - Preparar recursos, inicializar a grade e distribuir itens/runas conforme o tipo.
+
+        REGRAS DE USO:
+            - Deve ser chamado após instanciar `Mapa` e antes do uso do mesmo no jogo.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Para `CAVERNA`, pode receber `posicao_passagem_anterior` para alinhar passagens entre mapas.
+        """
         self.tipo = tipo
         caminho_base, multiplicador_itens = self._preparar_recursos(tipo)
         
@@ -181,24 +223,24 @@ class Mapa:
 
         self.posicoes_pergaminhos = []
         if self.tipo == 'DESERTO':
-            num_perg = config.JOGABILIDADE.get('quantidade_pergaminhos', 0)
-            if num_perg > 0:
+            quantidade_pergaminhos = config.JOGABILIDADE.get('quantidade_pergaminhos', 0)
+            if quantidade_pergaminhos > 0:
                 min_col = min(quadriculo.indice_coluna for quadriculo in self.lista_quadriculos)
                 max_col = max(quadriculo.indice_coluna for quadriculo in self.lista_quadriculos)
                 min_lin = min(quadriculo.indice_linha for quadriculo in self.lista_quadriculos)
                 max_lin = max(quadriculo.indice_linha for quadriculo in self.lista_quadriculos)
 
-                candidato_pergs = [quadriculo for quadriculo in quadriculos_elegiveis
+                candidatos_pergaminhos = [quadriculo for quadriculo in quadriculos_elegiveis
                                    if (quadriculo.indice_coluna >= (min_col + 2) and quadriculo.indice_coluna <= (max_col - 2)
                                        and quadriculo.indice_linha >= (min_lin + 2) and quadriculo.indice_linha <= (max_lin - 2))]
 
-                if len(candidato_pergs) < num_perg:
+                if len(candidatos_pergaminhos) < quantidade_pergaminhos:
                     random.shuffle(quadriculos_elegiveis)
-                    candidato_pergs = [quadriculo for quadriculo in quadriculos_elegiveis if quadriculo not in candidato_pergs]
-                    candidato_pergs = list({quadriculo: None for quadriculo in (candidato_pergs + quadriculos_elegiveis)}.keys())
+                    candidatos_pergaminhos = [quadriculo for quadriculo in quadriculos_elegiveis if quadriculo not in candidatos_pergaminhos]
+                    candidatos_pergaminhos = list({quadriculo: None for quadriculo in (candidatos_pergaminhos + quadriculos_elegiveis)}.keys())
 
-                random.shuffle(candidato_pergs)
-                selecionados = candidato_pergs[:num_perg]
+                random.shuffle(candidatos_pergaminhos)
+                selecionados = candidatos_pergaminhos[:quantidade_pergaminhos]
                 for quadriculo in selecionados:
                     quadriculo.item = 'pergaminho'
                     self.posicoes_pergaminhos.append((quadriculo.indice_coluna, quadriculo.indice_linha))
@@ -231,7 +273,7 @@ class Mapa:
             for coluna in range(num_colunas):
                 indice_variacao = random.randint(1, 6)
                 caminho_quadriculo = padrao_arquivo.format(indice_variacao) if usa_marcador else caminho_base
-                self._criar_quadriculo_e_adicionar(coluna, linha, caminho_quadriculo, variacao=indice_variacao)
+                self._criar_e_adicionar_quadriculo(coluna, linha, caminho_quadriculo, variacao=indice_variacao)
 
     def _gerar_quadriculos_caverna(self, linha_inicio, num_linhas, num_colunas, padrao_arquivo, usa_marcador, caminho_base, posicao_passagem):
         coordenadas_livres = [(c, l) for l in range(linha_inicio, num_linhas) for c in range(num_colunas)]
@@ -245,7 +287,7 @@ class Mapa:
             for coluna in range(num_colunas):
                 indice = mapa_variacoes.get((coluna, linha), 1)
                 caminho_quadriculo = padrao_arquivo.format(indice) if usa_marcador else caminho_base
-                quadriculo = self._criar_quadriculo_e_adicionar(coluna, linha, caminho_quadriculo, variacao=indice)
+                quadriculo = self._criar_e_adicionar_quadriculo(coluna, linha, caminho_quadriculo, variacao=indice)
                 
                 if (coluna, linha) == posicao_passagem:
                     quadriculo.eh_passagem = True
@@ -314,18 +356,17 @@ class Mapa:
         while coordenadas_livres:
             mapa_variacoes[coordenadas_livres.pop()] = 1
 
-    def _criar_quadriculo_e_adicionar(self, coluna, linha, caminho_arquivo_imagem, variacao=1):
+    def _criar_e_adicionar_quadriculo(self, coluna, linha, caminho_arquivo_imagem, variacao=1):
         imagem_quadriculo = Sprite(caminho_arquivo_imagem)
         imagem_quadriculo.x = coluna * self.largura_quadriculo
         imagem_quadriculo.y = linha * self.altura_quadriculo
-
         novo_quadriculo = Quadriculo(imagem_quadriculo, coluna, linha, indice_variacao_terreno=variacao)
         self.lista_quadriculos.append(novo_quadriculo)
         self.dicionario_quadriculos_por_coordenada[(coluna, linha)] = novo_quadriculo
         return novo_quadriculo
 
     def transformar_quadriculo_em_inimigo(self, coluna, linha):
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         if not quadriculo:
             return
 
@@ -342,28 +383,54 @@ class Mapa:
         quadriculo.indice_variacao_terreno = config.TIPO_TERRENO_INIMIGO
 
     def obter_posicao_passagem(self):
+        """
+        DESCRIÇÃO:
+            Retorna a posição (coluna, linha) do quadriculo marcado como passagem, se existir.
+
+        RESPONSABILIDADE:
+            - Procurar na lista de quadriculos aquele com a flag `eh_passagem` e retornar suas coordenadas.
+
+        REGRAS DE USO:
+            - Retorna uma tupla `(coluna, linha)` ou `None` quando nenhuma passagem estiver definida.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Percorre `self.lista_quadriculos` de forma linear; usada por `main.py` para alinhar transições.
+        """
         for quadriculo in self.lista_quadriculos:
             if getattr(quadriculo, 'eh_passagem', False):
                 return (quadriculo.indice_coluna, quadriculo.indice_linha)
         return None
 
 
-    def obter_quadriculo_por_coordenada_grade(self, coluna, linha):
+    def obter_quadriculo_por_coordenada(self, coluna, linha):
         return self.dicionario_quadriculos_por_coordenada.get((coluna, linha))
 
-    def obter_quadriculo_na_posicao_pixel(self, posicao_x, posicao_y):
-        return self.obter_quadriculo_por_coordenada_grade(int(posicao_x / self.largura_quadriculo), int(posicao_y / self.altura_quadriculo))
+    def obter_quadriculo_por_posicao_pixel(self, posicao_x, posicao_y):
+        return self.obter_quadriculo_por_coordenada(int(posicao_x / self.largura_quadriculo), int(posicao_y / self.altura_quadriculo))
 
-    def marcar_quadriculo_escavado_em(self, coluna, linha, caminho_arquivo_imagem=None):
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+    def marcar_quadriculo_escavado(self, coluna, linha, caminho_arquivo_imagem=None):
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         if quadriculo:
             return quadriculo.adicionar_sobreposicao(caminho_arquivo_imagem)
         return False
 
     def iniciar_escavacao(self, coluna, linha, tem_pa=False):
+        """
+        DESCRIÇÃO:
+            Inicia a ação de escavação no quadriculo indicado se possível.
+
+        RESPONSABILIDADE:
+            - Validar se é possível escavar e configurar temporizadores para o processo.
+
+        REGRAS DE USO:
+            - Retorna False se já estiver escavando, se o quadriculo não existir ou já tiver sobreposição.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Reduz a duração de escavação se `tem_pa` for True.
+        """
         if self._escavando:
             return False
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         if quadriculo is None:
             return False
         if quadriculo.tem_sobreposicao():
@@ -375,6 +442,19 @@ class Mapa:
         return True
 
     def atualizar_escavacao(self, tempo_decorrido, tem_pa=False, tem_faca=False):
+        """
+        DESCRIÇÃO:
+            Atualiza o temporizador de escavação e, quando concluída, resolve o resultado (sucesso/item/dado).
+
+        RESPONSABILIDADE:
+            - Incrementar o temporizador, verificar conclusão e aplicar resultado de escavação sobre o quadriculo.
+
+        REGRAS DE USO:
+            - Retorna uma tupla (concluido, sucesso, item, valor_dado).
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Usa lógica de probabilidade interna considerando bônus por `pa` e valida duplicatas.
+        """
         if not self._escavando:
             return False, False, None, 0
         
@@ -385,12 +465,12 @@ class Mapa:
             return False, False, None, 0
         
         coluna, linha = self._alvo_escavacao
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         
         concluido = True
         sucesso = False
         item = None
-        dado = 0
+        valor_dado = 0
 
         self._escavando = False
         self._alvo_escavacao = (None, None)
@@ -409,9 +489,9 @@ class Mapa:
         if (dado_bruto + bonus_dado) > config.JOGABILIDADE['dificuldade_escavacao']:
             sucesso = True
             caminho_imagem = config.RECURSOS['passagem'] if quadriculo and quadriculo.eh_passagem else None
-            adicionado = self.marcar_quadriculo_escavado_em(coluna, linha, caminho_imagem)
+            sobreposicao_adicionada = self.marcar_quadriculo_escavado(coluna, linha, caminho_imagem)
 
-            if adicionado and quadriculo:
+            if sobreposicao_adicionada and quadriculo:
                 item = quadriculo.item
                 item_display = item.upper() if item else "nada"
                 print(f"Escavacao conseguiu! Dado: {dado_bruto}+{bonus_dado} vs {config.JOGABILIDADE['dificuldade_escavacao']}")
@@ -425,7 +505,8 @@ class Mapa:
                     self._imprimir_dica_proximo_pergaminho(coluna, linha)
                     item = ('pergaminho', indice)
                 
-        return concluido, sucesso, item, dado
+        valor_dado = dado_bruto
+        return concluido, sucesso, item, valor_dado
 
     def _imprimir_dica_proximo_pergaminho(self, coluna, linha):
         try:
@@ -446,7 +527,7 @@ class Mapa:
         return min(1.0, self._temporizador_escavacao / max(1e-6, duracao))
 
     def _processar_celula_investigacao(self, coluna, linha, nome_posicao, dificuldade):
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         item_real = quadriculo.item if quadriculo else None
         
         dado = random.randint(1, 20)
@@ -472,6 +553,19 @@ class Mapa:
         )
 
     def iniciar_investigacao(self, coluna, linha):
+        """
+        DESCRIÇÃO:
+            Inicia a sequência de investigação ao redor de uma coordenada central, gerando fila de mensagens.
+
+        RESPONSABILIDADE:
+            - Preparar a fila de mensagens que serão exibidas durante a investigação.
+
+        REGRAS DE USO:
+            - Retorna False se já estiver investigando ou se coordenada inválida.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - A dificuldade de cada célula depende de sua posição (centro, ortogonal, diagonal).
+        """
         if self._investigando:
             return False
 
@@ -509,6 +603,19 @@ class Mapa:
         return True
 
     def atualizar_investigacao(self, tempo_decorrido):
+        """
+        DESCRIÇÃO:
+            Atualiza o estado da investigação, avança o temporizador e retorna a mensagem atual.
+
+        RESPONSABILIDADE:
+            - Retornar (investigando, mensagem_atual).
+
+        REGRAS DE USO:
+            - Deve ser chamado a cada frame enquanto `_investigando` for True.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Calcula qual mensagem da fila deve ser exibida com base no tempo acumulado.
+        """
         if not self._investigando:
             return False, ""
 
@@ -543,10 +650,36 @@ class Mapa:
         return min(1.0, self._tempo_investigacao / max(1e-6, self._duracao_total_investigacao))
 
     def desenhar(self):
+        """
+        DESCRIÇÃO:
+            Desenha todos os quadriculos que compõem o mapa na ordem de sua lista interna.
+
+        RESPONSABILIDADE:
+            - Chamar `desenhar()` de cada `Quadriculo`.
+
+        REGRAS DE USO:
+            - Chamado no ciclo de renderização do jogo.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - A ordem de desenho segue `self.lista_quadriculos`.
+        """
         for quadriculo in self.lista_quadriculos:
             quadriculo.desenhar()
 
     def resetar_estado(self):
+        """
+        DESCRIÇÃO:
+            Limpa estados transitórios do mapa, removendo sobreposições e resetando timers.
+
+        RESPONSABILIDADE:
+            - Restaurar o mapa para um estado inicial preservando a geração original.
+
+        REGRAS DE USO:
+            - Usado ao reiniciar o jogo para manter distribuição de itens mas limpar o visual.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Limpa atributos como `_escavando` e `_investigando` e esvazia filas de mensagens.
+        """
         for quadriculo in self.lista_quadriculos:
             quadriculo.imagem_sobreposicao = None
         
@@ -561,7 +694,7 @@ class Mapa:
     def verificar_colisao_parede(self, x, y):
         if self.tipo != 'CAVERNA':
             return False
-        quadriculo = self.obter_quadriculo_na_posicao_pixel(x, y)
+        quadriculo = self.obter_quadriculo_por_posicao_pixel(x, y)
         if quadriculo and getattr(quadriculo, 'indice_variacao_terreno', 1) == config.TIPO_TERRENO_PAREDE:
             return True
         return False
@@ -569,11 +702,11 @@ class Mapa:
     def eh_buraco(self, coluna, linha):
         if self.tipo != 'CAVERNA':
             return False
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         return quadriculo and getattr(quadriculo, 'indice_variacao_terreno', 1) == config.TIPO_TERRENO_BURACO
 
     def eh_runa(self, coluna, linha):
         if self.tipo != 'CAVERNA':
             return False
-        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        quadriculo = self.obter_quadriculo_por_coordenada(coluna, linha)
         return quadriculo and getattr(quadriculo, 'indice_variacao_terreno', 1) == config.TIPO_TERRENO_RUNA

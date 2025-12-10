@@ -32,7 +32,38 @@ import config
 
 
 class InterfaceUsuario:
+    """
+    DESCRIÇÃO:
+        Classe responsável pela apresentação e lógica de interface do jogo (HUD, inventário, mensagens).
+
+    RESPONSABILIDADE:
+        1. Renderizar barras de status (sede, sol) e inventário.
+        2. Gerenciar a evolução temporal de recursos do jogador (taxas de sede/sol).
+        3. Controlar sons relacionados à interface (escavar, investigando, trilha).
+        4. Fornecer métodos para adicionar/usar/remover itens do inventário.
+
+    REGRAS DE USO:
+        - Instanciar passando a `janela` do jogo e opcionalmente `altura_quadriculo`.
+        - Chamar `atualizar(tempo_decorrido)` a cada frame e `desenhar()` após as atualizações.
+
+    NOTAS DE IMPLEMENTAÇÃO:
+        - Muitos métodos operam diretamente sobre sprites e componentes de áudio; falhas ao carregar assets são tratadas silenciosamente.
+        - Usa configurações definidas em `config` para valores de gameplay e recursos.
+    """
     def __init__(self, janela, altura_quadriculo=None):
+        """
+        DESCRIÇÃO:
+            Inicializa a interface de usuário com sprites, sons e estados iniciais.
+
+        RESPONSABILIDADE:
+            - Configurar sprites de HUD, carregar imagens de preenchimento e preparar slots de inventário.
+
+        REGRAS DE USO:
+            - Recebe a `janela` como objeto PPlay.Window e opcional `altura_quadriculo` para dimensionamento.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Sons opcionais são carregados com tratamento de exceção para permitir execução sem áudio.
+        """
         self.janela = janela
         self.altura_quadriculo = altura_quadriculo
 
@@ -45,7 +76,7 @@ class InterfaceUsuario:
         self.sol = config.JOGABILIDADE['sol_inicial']
         self._tempo_acumulado = 0.0
 
-        self.espacos_inventario = []
+        self.slots_inventario = []
         self.calcular_disposicao()
 
         imagens_preenchimento = config.INTERFACE_USUARIO.get('imagens_preenchimento_barra', [])
@@ -87,6 +118,20 @@ class InterfaceUsuario:
         self.trilha_sonora = None
 
     def iniciar_trilha(self, caminho="assets/trilha.ogg", volume=5):
+        """
+        DESCRIÇÃO:
+            Inicia a trilha sonora do jogo, carregando o arquivo e configurando repetição/volume.
+
+        RESPONSABILIDADE:
+            - Criar o objeto `Sound`, configurar repetição e volume, e iniciar a reprodução.
+
+        REGRAS DE USO:
+            - Chamado opcionalmente logo após a inicialização dos recursos do jogo.
+            - Não reinicia a trilha se já estiver ativa.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Falhas no carregamento são tratadas silenciosamente para permitir execução sem áudio.
+        """
         if getattr(self, 'trilha_sonora', None) is not None:
             return
         try:
@@ -118,6 +163,19 @@ class InterfaceUsuario:
             pass
 
     def iniciar_som_investigando(self, jogador=None):
+        """
+        DESCRIÇÃO:
+            Começa a reprodução do som de investigação em loop, marcando o jogador como tocando o som.
+
+        RESPONSABILIDADE:
+            - Iniciar `som_investigando` e marcar `jogador._tocando_som_investigando` quando aplicável.
+
+        REGRAS DE USO:
+            - Usar apenas quando a investigação começar; falhas no áudio são ignoradas.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Protegido por `getattr` para cenários sem suporte a áudio.
+        """
         try:
             if getattr(self, 'som_investigando', None):
                 self.som_investigando.set_repeat(True)
@@ -128,6 +186,19 @@ class InterfaceUsuario:
             pass
 
     def parar_som_investigando(self, jogador=None):
+        """
+        DESCRIÇÃO:
+            Para a reprodução do som de investigação e remove a marcação no jogador.
+
+        RESPONSABILIDADE:
+            - Parar `som_investigando` e limpar `jogador._tocando_som_investigando` quando aplicável.
+
+        REGRAS DE USO:
+            - Deve ser chamado quando a investigação terminar ou for cancelada.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Trata exceções silenciosamente para rodar sem dependência de áudio.
+        """
         try:
             if getattr(self, 'som_investigando', None):
                 self.som_investigando.set_repeat(False)
@@ -167,13 +238,13 @@ class InterfaceUsuario:
         x_espacos = self.janela.width - (contagem_espacos * largura_espaco) - margem_direita_espaco
         y_espacos = (altura_painel - altura_espaco) / 2
 
-        self.espacos_inventario = [Sprite(config.RECURSOS['espaco_inventario']) for _ in range(contagem_espacos)]
-        for indice_espaco, espaco_atual in enumerate(self.espacos_inventario):
+        self.slots_inventario = [Sprite(config.RECURSOS['espaco_inventario']) for _ in range(contagem_espacos)]
+        for indice_espaco, espaco_atual in enumerate(self.slots_inventario):
             espaco_atual.x = x_espacos + indice_espaco * largura_espaco
             espaco_atual.y = y_espacos
-        self.sobreposicoes_espacos = [None for _ in range(contagem_espacos)]
+        self.imagens_sobreposicao_slots = [None for _ in range(contagem_espacos)]
         self.nomes_itens = [None for _ in range(contagem_espacos)]
-        self.usos_itens = [None for _ in range(contagem_espacos)]
+        self.usos_restantes_por_slot = [None for _ in range(contagem_espacos)]
 
     def _carregar_sprite_segura(self, caminho):
         if not caminho:
@@ -183,20 +254,34 @@ class InterfaceUsuario:
         except Exception:
             return None
 
-    def definir_valores(self, sede=None, sol=None):
+    def definir_status_sede_sol(self, sede=None, sol=None):
         if sede is not None:
             self.sede = max(0, min(config.JOGABILIDADE['max_sede'], int(sede)))
         if sol is not None:
             self.sol = max(0, min(config.JOGABILIDADE['max_sol'], int(sol)))
 
     def atualizar(self, tempo_decorrido):
+        """
+        DESCRIÇÃO:
+            Atualiza timers e aplica variações de sede/sol baseadas em `tempo_decorrido`.
+
+        RESPONSABILIDADE:
+            - Incrementar recursos do jogador de acordo com taxas configuradas.
+            - Atualizar temporizadores de mensagens visuais.
+
+        REGRAS DE USO:
+            - Deve ser chamado a cada frame antes de `desenhar()`.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Acumula tempo em `_tempo_acumulado` para calcular segundos completos.
+        """
         self._tempo_acumulado += tempo_decorrido
         segundos_completos = int(self._tempo_acumulado)
         
         if segundos_completos >= 1:
             nova_sede = self.sede + (config.JOGABILIDADE['taxa_sede_segundo'] * segundos_completos * self.multiplicador_custo)
             novo_sol = self.sol + (config.JOGABILIDADE['taxa_sol_segundo'] * segundos_completos * self.multiplicador_custo)
-            self.definir_valores(sede=nova_sede, sol=novo_sol)
+            self.definir_status_sede_sol(sede=nova_sede, sol=novo_sol)
             self._tempo_acumulado -= segundos_completos
 
         if self._temporizador_mensagem_sede > 0:
@@ -212,6 +297,19 @@ class InterfaceUsuario:
                 self._temporizador_mensagem_sol = 0.0
 
     def desenhar(self):
+        """
+        DESCRIÇÃO:
+            Renderiza elementos visuais da interface: ícones, barras de status, inventário e leitura de pergaminhos.
+
+        RESPONSABILIDADE:
+            - Desenhar sprites e textos relacionados ao HUD e inventário.
+
+        REGRAS DE USO:
+            - Chamado no ciclo de renderização do jogo após atualizações.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Usa `self.imagens_preenchimento` para compor barras de progresso preenchidas.
+        """
         self.icone_sol.draw()
         self.barra_sol.draw()
 
@@ -232,9 +330,9 @@ class InterfaceUsuario:
             self.janela.draw_text(self._mensagem_sede, texto_x, texto_y, size=config.INTERFACE_USUARIO['tamanho_fonte_padrao'], color=config.CORES['preto'])
 
         if self.modo_inventario == 'padrao':
-            for espaco_atual in self.espacos_inventario:
+            for espaco_atual in self.slots_inventario:
                 espaco_atual.draw()
-            for sobreposicao in self.sobreposicoes_espacos:
+            for sobreposicao in self.imagens_sobreposicao_slots:
                 if sobreposicao is not None:
                     sobreposicao.draw()
         elif self.modo_inventario == 'pergaminhos':
@@ -244,8 +342,8 @@ class InterfaceUsuario:
             self.tela_leitura.desenhar(self.pergaminhos_coletados, self.indice_leitura_atual, self.lendo_pergaminho, referencia=self.leitura_referencia)
 
     def desenhar_inventario_pergaminhos(self):
-        imagem_pergaminho = getattr(self.tela_leitura, 'imagem_pergaminho', None)
-        for indice_espaco, espaco_atual in enumerate(self.espacos_inventario):
+        imagem_pergaminho = getattr(self.tela_leitura, 'imagem_pergaminho_fragmento', None)
+        for indice_espaco, espaco_atual in enumerate(self.slots_inventario):
             espaco_atual.draw()
             if indice_espaco in self.pergaminhos_coletados and imagem_pergaminho is not None:
                 imagem_pergaminho.x = espaco_atual.x + (espaco_atual.width - imagem_pergaminho.width) / 2
@@ -263,6 +361,19 @@ class InterfaceUsuario:
         self.leitura_referencia = bool(referencia)
 
     def processar_input_mouse(self, dispositivo_mouse):
+        """
+        DESCRIÇÃO:
+            Processa eventos do mouse relacionados à interface (principalmente leitura de pergaminhos).
+
+        RESPONSABILIDADE:
+            - Encaminhar eventos à `TelaLeitura` quando em modo de leitura e retornar ações especiais.
+
+        REGRAS DE USO:
+            - Retorna `None` quando não há ação, ou `'RESTART'` quando o usuário acionou reinício via UI.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Quando `tela_leitura` retorna um índice, atualiza `indice_leitura_atual` e retorna None.
+        """
         if not self.lendo_pergaminho:
             return None
 
@@ -322,6 +433,19 @@ class InterfaceUsuario:
             imagem_para_desenhar.draw()
 
     def definir_multiplicador_custo(self, valor):
+        """
+        DESCRIÇÃO:
+            Define o multiplicador de custo aplicado às taxas de sede/sol e outras ações da interface.
+
+        RESPONSABILIDADE:
+            - Ajustar `multiplicador_custo` para refletir diferenças de custo entre ambientes (ex.: caverna).
+
+        REGRAS DE USO:
+            - Recebe um valor numérico (float) e substitui o multiplicador atual.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Usado por `main.py` para reduzir custos ao entrar na caverna.
+        """
         self.multiplicador_custo = valor
 
     def processar_item_encontrado(self, nome_item):
@@ -334,47 +458,75 @@ class InterfaceUsuario:
         return False
 
     def adicionar_item(self, caminho_imagem, nome_item=None):
-        for indice_slot, sobreposicao in enumerate(self.sobreposicoes_espacos):
+        """
+        DESCRIÇÃO:
+            Tenta adicionar uma sobreposição de imagem representando um item no primeiro slot livre.
+
+        RESPONSABILIDADE:
+            - Inserir sprite do item no inventário e registrar usos caso aplicável.
+
+        REGRAS DE USO:
+            - Recebe o caminho da imagem e (opcional) o nome lógico do item.
+            - Retorna True se item foi adicionado, False caso não haja slot livre.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Define usos iniciais para itens como 'pa' ou 'faca' usando `config.JOGABILIDADE`.
+        """
+        for indice_slot, sobreposicao in enumerate(self.imagens_sobreposicao_slots):
             if sobreposicao is None:
                 imagem = Sprite(caminho_imagem)
-                espaco = self.espacos_inventario[indice_slot]
+                espaco = self.slots_inventario[indice_slot]
                 imagem.x = espaco.x + (espaco.width - imagem.width) / 2
                 imagem.y = espaco.y + (espaco.height - imagem.height) / 2
-                self.sobreposicoes_espacos[indice_slot] = imagem
+                self.imagens_sobreposicao_slots[indice_slot] = imagem
                 self.nomes_itens[indice_slot] = nome_item
                 if nome_item == 'pa':
-                    self.usos_itens[indice_slot] = config.JOGABILIDADE.get('usos_pa', None)
+                    self.usos_restantes_por_slot[indice_slot] = config.JOGABILIDADE.get('usos_pa', None)
                 elif nome_item == 'faca':
-                    self.usos_itens[indice_slot] = config.JOGABILIDADE.get('usos_faca', None)
+                    self.usos_restantes_por_slot[indice_slot] = config.JOGABILIDADE.get('usos_faca', None)
                 else:
-                    self.usos_itens[indice_slot] = None
+                    self.usos_restantes_por_slot[indice_slot] = None
                 item_nome = nome_item.upper() if nome_item else "item"
                 print(f"Pegou: {item_nome}")
                 return True
         return False
 
     def usar_item(self, indice_slot):
-        if indice_slot < 0 or indice_slot >= len(self.sobreposicoes_espacos):
+        """
+        DESCRIÇÃO:
+            Usa o item presente no `indice_slot` do inventário e atualiza usos/removendo-o quando esgotado.
+
+        RESPONSABILIDADE:
+            - Diminuir contador de usos para ferramentas ou remover consumíveis.
+
+        REGRAS DE USO:
+            - Recebe índice do slot; retorna False para índices inválidos ou slot vazio.
+            - Retorna True quando a operação foi bem-sucedida.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Atualiza listas internas: `imagens_sobreposicao_slots`, `nomes_itens`, `usos_restantes_por_slot`.
+        """
+        if indice_slot < 0 or indice_slot >= len(self.imagens_sobreposicao_slots):
             return False
-        if self.sobreposicoes_espacos[indice_slot] is None:
+        if self.imagens_sobreposicao_slots[indice_slot] is None:
             return False
         nome = self.nomes_itens[indice_slot]
-        if nome in ('pa', 'faca') and self.usos_itens[indice_slot] is not None:
-            usos_restantes = self.usos_itens[indice_slot]
+        if nome in ('pa', 'faca') and self.usos_restantes_por_slot[indice_slot] is not None:
+            usos_restantes = self.usos_restantes_por_slot[indice_slot]
             if usos_restantes > 1:
-                self.usos_itens[indice_slot] = usos_restantes - 1
-                print(f"Usou {nome}. Usos restantes: {self.usos_itens[indice_slot]}")
+                self.usos_restantes_por_slot[indice_slot] = usos_restantes - 1
+                print(f"Usou {nome}. Usos restantes: {self.usos_restantes_por_slot[indice_slot]}")
                 return True
             else:
-                self.usos_itens[indice_slot] = None
-                self.sobreposicoes_espacos[indice_slot] = None
+                self.usos_restantes_por_slot[indice_slot] = None
+                self.imagens_sobreposicao_slots[indice_slot] = None
                 self.nomes_itens[indice_slot] = None
                 print(f"{nome.upper()} quebrou/acabou e foi removida do inventário.")
                 return True
 
-        self.sobreposicoes_espacos[indice_slot] = None
+        self.imagens_sobreposicao_slots[indice_slot] = None
         self.nomes_itens[indice_slot] = None
-        self.usos_itens[indice_slot] = None
+        self.usos_restantes_por_slot[indice_slot] = None
         return True
 
     def tem_item(self, nome_item):
@@ -386,28 +538,28 @@ class InterfaceUsuario:
         except ValueError:
             return False
 
-        usos = self.usos_itens[indice_encontrado]
+        usos = self.usos_restantes_por_slot[indice_encontrado]
         if usos is None:
-            self.sobreposicoes_espacos[indice_encontrado] = None
+            self.imagens_sobreposicao_slots[indice_encontrado] = None
             self.nomes_itens[indice_encontrado] = None
-            self.usos_itens[indice_encontrado] = None
+            self.usos_restantes_por_slot[indice_encontrado] = None
             return True
 
         if usos > 1:
-            self.usos_itens[indice_encontrado] = usos - 1
-            print(f"Consumiu uso de {nome_item}. Usos restantes: {self.usos_itens[indice_encontrado]}")
+            self.usos_restantes_por_slot[indice_encontrado] = usos - 1
+            print(f"Consumiu uso de {nome_item}. Usos restantes: {self.usos_restantes_por_slot[indice_encontrado]}")
             return True
         else:
-            self.sobreposicoes_espacos[indice_encontrado] = None
+            self.imagens_sobreposicao_slots[indice_encontrado] = None
             self.nomes_itens[indice_encontrado] = None
-            self.usos_itens[indice_encontrado] = None
+            self.usos_restantes_por_slot[indice_encontrado] = None
             print(f"{nome_item.upper()} quebrou/acabou e foi removida do inventário.")
             return True
 
     def remover_item(self, nome_item):
         try:
             indice_encontrado = self.nomes_itens.index(nome_item)
-            self.sobreposicoes_espacos[indice_encontrado] = None
+            self.imagens_sobreposicao_slots[indice_encontrado] = None
             self.nomes_itens[indice_encontrado] = None
             return True
         except ValueError:
@@ -415,14 +567,14 @@ class InterfaceUsuario:
 
     def recuperar_sede_escavacao(self):
         custo_sede = config.JOGABILIDADE['recuperacao_sede_item']
-        self.definir_valores(sede=self.sede + custo_sede)
+        self.definir_status_sede_sol(sede=self.sede + custo_sede)
         self.exibir_mensagem('sede', f'+{custo_sede}', duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
         print(f"Custo da escavacao: sede +{custo_sede}")
 
     def consumir_bebida(self, indice_espaco):
         if self.usar_item(indice_espaco):
             recuperacao = config.JOGABILIDADE['recuperacao_sede_beber']
-            self.definir_valores(sede=self.sede - recuperacao)
+            self.definir_status_sede_sol(sede=self.sede - recuperacao)
             self.exibir_mensagem('sede', f"-{recuperacao}", duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
             print(f"Bebeu agua!")
             return True
@@ -432,18 +584,31 @@ class InterfaceUsuario:
         custo_sede = config.JOGABILIDADE['custo_investigacao_sede']
         custo_sol = config.JOGABILIDADE['custo_investigacao_sol']
         
-        self.definir_valores(sede=self.sede + custo_sede, sol=self.sol + custo_sol)
+        self.definir_status_sede_sol(sede=self.sede + custo_sede, sol=self.sol + custo_sol)
         self.exibir_mensagem('sede', f'+{custo_sede}', duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
         self.exibir_mensagem('sol', f'+{custo_sol}', duracao=config.INTERFACE_USUARIO['duracao_mensagem_feedback'])
         print(f"Investigando... Sede {self.sede}, Sol {self.sol}")
     def verificar_se_jogador_morreu(self):
+        """
+        DESCRIÇÃO:
+            Verifica se os status de `sede` ou `sol` atingiram os limites de Game Over.
+
+        RESPONSABILIDADE:
+            - Retornar True quando qualquer dos status atingir ou ultrapassar seus máximos configurados.
+
+        REGRAS DE USO:
+            - Chamado pelo loop principal para checar condição de morte do jogador.
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Compara `self.sede` e `self.sol` com os valores em `config.JOGABILIDADE`.
+        """
         return self.sede >= config.JOGABILIDADE['max_sede'] or self.sol >= config.JOGABILIDADE['max_sol']
 
     def aplicar_dano_combate(self, valor):
-        self.definir_valores(sede=self.sede + valor)
+        self.definir_status_sede_sol(sede=self.sede + valor)
 
     def aplicar_cura_combate(self, valor):
-        self.definir_valores(sede=self.sede - valor)
+        self.definir_status_sede_sol(sede=self.sede - valor)
 
     def possui_condicao_para_combate(self):
         vida_restante = config.JOGABILIDADE['max_sede'] - self.sede
@@ -460,10 +625,13 @@ class InterfaceUsuario:
             return
 
     def obter_indice_item_acionado(self, teclado):
-        for numero_tecla in range(1, min(8, len(self.espacos_inventario)) + 1):
+        if self.modo_inventario != 'padrao' or self.lendo_pergaminho:
+            return None
+
+        for numero_tecla in range(1, min(8, len(self.slots_inventario)) + 1):
             if teclado.key_pressed(str(numero_tecla)):
                 indice_espaco = numero_tecla - 1
-                if self.sobreposicoes_espacos[indice_espaco] is not None:
+                if self.imagens_sobreposicao_slots[indice_espaco] is not None:
                     return indice_espaco
         return None
 
@@ -517,6 +685,21 @@ class InterfaceUsuario:
             tela.fill(cor_preenchimento, (barra_x, barra_y, largura_preenchimento, altura_barra))
 
     def processar_recompensa_escavacao(self, item_encontrado, sobreposicao_adicionada):
+        """
+        DESCRIÇÃO:
+            Processa a recompensa resultante de uma escavação: aplica efeitos de sede e adiciona itens/pergaminhos.
+
+        RESPONSABILIDADE:
+            - Recuperar sede do jogador e tratar itens especiais (pergaminhos, duplicatas).
+            - Integrar com inventário quando houver sobreposição adicionada.
+
+        REGRAS DE USO:
+            - Recebe `item_encontrado` (string ou tupla para pergaminhos) e `sobreposicao_adicionada` (bool).
+            - Retorna um código representando o resultado ('sucesso', 'pergaminho_encontrado', 'falha', etc.).
+
+        NOTAS DE IMPLEMENTAÇÃO:
+            - Se `item_encontrado` for duplicado, retorna código apropriado sem adicionar ao inventário.
+        """
         if item_encontrado in ['pa_duplicada', 'faca_duplicada']:
             return item_encontrado 
         

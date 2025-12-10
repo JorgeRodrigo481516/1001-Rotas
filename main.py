@@ -26,7 +26,6 @@ from mapa import Mapa
 from jogador import Jogador
 from interface_usuario import InterfaceUsuario
 import config
-import popup
 from popup import TelaMorte, TelaCombate
 from sistema_combate import SistemaCombate
 from mecanicas_caverna import MecanicasCaverna
@@ -35,24 +34,39 @@ janela = Window(config.LARGURA_JANELA, config.ALTURA_JANELA)
 janela.set_title("1001 Rotas")
 
 tela_morte = TelaMorte(janela)
-mouse_entrada = janela.get_mouse()
+mouse_janela = janela.get_mouse()
 
 mapa_deserto = None
 mapa_caverna = None
 mapa_ativo = None
-interface = None
+interface_usuario = None
 jogador = None
-combate = None
-controlador_mecanicas_caverna = None
-tela_combate = None
-primeira_inicializacao = True
-investigacao_ativa_anterior = False
+sistema_combate = None
+mecanicas_caverna = None
+ja_inicializado = True
+investigacao_estava_ativa = False
 
-def inicializar_recursos_jogo():
-    global mapa_deserto, mapa_caverna, mapa_ativo, interface, jogador, combate, controlador_mecanicas_caverna
-    global primeira_inicializacao
-    if primeira_inicializacao:
-        primeira_inicializacao = False
+def inicializar_recursos_do_jogo():
+    """
+    DESCRIÇÃO:
+        Inicializa ou reinicia todos os recursos e subsistemas necessários para rodar o jogo.
+
+    RESPONSABILIDADE:
+        1. Criar/Resetar os objetos de `Mapa` (deserto e caverna) e selecionar o `mapa_ativo`.
+        2. Inicializar a `InterfaceUsuario`, `Jogador`, `SistemaCombate` e `MecanicasCaverna`.
+        3. Garantir que referências cruzadas (ex.: `jogador.mecanicas_caverna`) estejam configuradas.
+
+    REGRAS DE USO:
+        - Chamar antes de começar o loop principal ou ao reiniciar o jogo.
+        - Pode ser executada múltiplas vezes; deve restaurar o estado para uma partida limpa.
+
+    NOTAS DE IMPLEMENTAÇÃO:
+        - A função altera variáveis globais (usa `global`).
+        - Se `mapa_deserto` já existir, chama `resetar_estado` para preservar o objeto.
+        - Se `mapa_caverna` não existir, será criado apenas quando necessário ao entrar na caverna.
+    """
+    global ja_inicializado
+    global mapa_deserto, mapa_caverna, mapa_ativo, interface_usuario, jogador, sistema_combate, mecanicas_caverna
     
     if mapa_deserto is None:
         mapa_deserto = Mapa(janela)
@@ -64,20 +78,20 @@ def inicializar_recursos_jogo():
 
     mapa_ativo = mapa_deserto
 
-    interface = InterfaceUsuario(janela, altura_quadriculo=mapa_ativo.altura_quadriculo)
+    interface_usuario = InterfaceUsuario(janela, altura_quadriculo=mapa_ativo.altura_quadriculo)
     tela_combate = TelaCombate(janela)
-    combate = SistemaCombate(janela, interface, tela_combate)
+    sistema_combate = SistemaCombate(janela, interface_usuario, tela_combate)
 
-    jogador = Jogador(None, None, janela, mapa_ativo, interface=interface, sistema_combate=combate)
+    jogador = Jogador(None, None, janela, mapa_ativo, interface=interface_usuario, sistema_combate=sistema_combate)
     
-    controlador_mecanicas_caverna = MecanicasCaverna(jogador, mapa_ativo, combate)
-    jogador.mecanicas_caverna = controlador_mecanicas_caverna
+    mecanicas_caverna = MecanicasCaverna(jogador, mapa_ativo, sistema_combate)
+    jogador.mecanicas_caverna = mecanicas_caverna
     
-inicializar_recursos_jogo()
-try:
-    interface.iniciar_trilha()
-except Exception:
-    pass
+
+
+inicializar_recursos_do_jogo()
+if hasattr(interface_usuario, 'iniciar_trilha'):
+    interface_usuario.iniciar_trilha()
 
 print("Jogo iniciado!")
 posicao_passagem = mapa_deserto.obter_posicao_passagem()
@@ -92,59 +106,58 @@ while True:
 
     if tela_morte.esta_visivel:
         tela_morte.atualizar(tempo_decorrido)
-        if tela_morte.verificar_clique_reiniciar(mouse_entrada):
-            inicializar_recursos_jogo()
+        if tela_morte.verificar_clique_reiniciar(mouse_janela):
+            inicializar_recursos_do_jogo()
             tela_morte.ocultar()
 
     if not tela_morte.esta_visivel:
-        interface.atualizar(tempo_decorrido)
-        resultado_mouse = interface.processar_input_mouse(mouse_entrada)
+        interface_usuario.atualizar(tempo_decorrido)
+        resultado_mouse = interface_usuario.processar_input_mouse(mouse_janela)
         if resultado_mouse == 'RESTART':
-            inicializar_recursos_jogo()
+            inicializar_recursos_do_jogo()
             continue
-
-        if interface.verificar_se_jogador_morreu() and not tela_morte.esta_visivel and not combate.combate_ativo:
+        if interface_usuario.verificar_se_jogador_morreu() and not sistema_combate.combate_ativo:
             tela_morte.aguardar_clique_apos_morte()
-            if interface.sede >= config.JOGABILIDADE['max_sede']:
+            if interface_usuario.sede >= config.JOGABILIDADE['max_sede']:
                 print("Morreu de sede!")
             else:
                 print("Morreu queimado pelo sol!")
 
-        if combate.combate_ativo:
-            combate.atualizar(tempo_decorrido, mouse_entrada)
+        if sistema_combate.combate_ativo:
+            sistema_combate.atualizar(tempo_decorrido, mouse_janela)
         else:
             jogador.atualizar(teclado, tempo_decorrido)
 
-            if controlador_mecanicas_caverna.morreu_por_queda and not tela_morte.esta_visivel:
+            if mecanicas_caverna.morreu_por_queda and not tela_morte.esta_visivel:
                 tela_morte.aguardar_clique_apos_morte()
 
-            if controlador_mecanicas_caverna.solicitacao_transicao:
-                controlador_mecanicas_caverna.solicitacao_transicao = False
+            if mecanicas_caverna.pedido_transicao_ambiente:
+                mecanicas_caverna.pedido_transicao_ambiente = False
                 
                 if mapa_ativo == mapa_deserto:
                     if mapa_caverna is None:
                         mapa_caverna = Mapa(janela)
                         posicao_passagem = mapa_deserto.obter_posicao_passagem()
                         mapa_caverna.construir(tipo='CAVERNA', posicao_passagem_anterior=posicao_passagem)
-                        try:
+                        if hasattr(mapa_caverna, 'posicao_runa_final') and mapa_caverna.posicao_runa_final is not None:
                             print(f"Runa final em: {mapa_caverna.posicao_runa_final}")
-                        except Exception:
+                        else:
                             print("Runa final: desconhecida")
                     
                     mapa_ativo = mapa_caverna
-                    try:
+                    if hasattr(mapa_ativo, 'posicao_runa_final') and mapa_ativo.posicao_runa_final is not None:
                         print(f"Entrando na caverna. Runa final em: {mapa_ativo.posicao_runa_final}")
-                    except Exception:
+                    else:
                         print("Entrando na caverna. Runa final: desconhecida")
-                    interface.definir_multiplicador_custo(config.JOGABILIDADE['multiplicador_custo_caverna'])
+                    interface_usuario.definir_multiplicador_custo(config.JOGABILIDADE['multiplicador_custo_caverna'])
                     print("Entrou na caverna!")
                 else:
                     mapa_ativo = mapa_deserto
-                    interface.definir_multiplicador_custo(1.0)
+                    interface_usuario.definir_multiplicador_custo(1.0)
                     print("Voltou ao deserto!")
                 
                 jogador.mapa = mapa_ativo
-                controlador_mecanicas_caverna.mapa = mapa_ativo
+                mecanicas_caverna.mapa = mapa_ativo
                 posicao_passagem = mapa_ativo.obter_posicao_passagem()
                 if posicao_passagem:
                     coluna, linha = posicao_passagem
@@ -153,26 +166,22 @@ while True:
             terminou_escavacao, valor_dado = jogador.processar_escavacao(tempo_decorrido)
             investigando_ativo, _ = mapa_ativo.atualizar_investigacao(tempo_decorrido)
 
-            try:
-                if investigacao_ativa_anterior and not investigando_ativo and jogador is not None:
-                    if interface is not None:
-                        interface.parar_som_investigando(jogador)
-            except Exception:
-                pass
-            investigacao_ativa_anterior = investigando_ativo
+            if investigacao_estava_ativa and not investigando_ativo and jogador is not None and interface_usuario is not None:
+                interface_usuario.parar_som_investigando(jogador)
+            investigacao_estava_ativa = investigando_ativo
 
             if terminou_escavacao and valor_dado is not None:
-                if interface.verificar_se_jogador_morreu() and not tela_morte.esta_visivel and not combate.combate_ativo:
+                if interface_usuario.verificar_se_jogador_morreu() and not sistema_combate.combate_ativo:
                     tela_morte.aguardar_clique_apos_morte()
 
     mapa_ativo.desenhar()
 
     jogador.desenhar()
 
-    interface.desenhar()
+    interface_usuario.desenhar()
     
-    if combate.combate_ativo:
-        combate.desenhar()
+    if sistema_combate.combate_ativo:
+        sistema_combate.desenhar()
 
     tela_morte.desenhar()
 
