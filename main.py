@@ -21,7 +21,6 @@ NOTAS DE IMPLEMENTAÇÃO:
 -------------------------------------------------------------------
 """
 from PPlay.window import Window
-from PPlay.sound import Sound as Som
 
 from mapa import Mapa
 from jogador import Jogador
@@ -34,26 +33,6 @@ from mecanicas_caverna import MecanicasCaverna
 
 janela = Window(config.LARGURA_JANELA, config.ALTURA_JANELA)
 janela.set_title("1001 Rotas")
-
-# --- Trilha sonora de fundo (reprodução durante todo o jogo)
-trilha_sonora = None
-CAMINHO_TRILHA = "assets/trilha.mp3"
-
-def iniciar_trilha_sonora():
-    """Carrega e inicia a trilha sonora em loop. Não reinicia se já estiver tocando."""
-    global trilha_sonora
-    if trilha_sonora is not None:
-        return
-    try:
-        trilha_sonora = Som(CAMINHO_TRILHA)
-        trilha_sonora.set_repeat(True)
-        # Volume inicial em 30% (0-100)
-        trilha_sonora.set_volume(30)
-        trilha_sonora.play()
-        print("Trilha sonora iniciada:", CAMINHO_TRILHA)
-    except Exception as e:
-        print("Aviso: não foi possível iniciar a trilha sonora:", e)
-
 
 tela_morte = TelaMorte(janela)
 mouse_entrada = janela.get_mouse()
@@ -73,10 +52,6 @@ def inicializar_recursos_jogo():
     global mapa_deserto, mapa_caverna, mapa_ativo, interface, jogador, combate, controlador_mecanicas_caverna
     global primeira_inicializacao
     if primeira_inicializacao:
-        try:
-            popup.embaralhar_pergaminhos()
-        except Exception:
-            pass
         primeira_inicializacao = False
     
     if mapa_deserto is None:
@@ -97,9 +72,13 @@ def inicializar_recursos_jogo():
     
     controlador_mecanicas_caverna = MecanicasCaverna(jogador, mapa_ativo, combate)
     jogador.mecanicas_caverna = controlador_mecanicas_caverna
-
-iniciar_trilha_sonora()
+    
 inicializar_recursos_jogo()
+try:
+    interface.iniciar_trilha()
+except Exception:
+    pass
+
 print("Jogo iniciado!")
 posicao_passagem = mapa_deserto.obter_posicao_passagem()
 if posicao_passagem:
@@ -169,23 +148,20 @@ while True:
                 posicao_passagem = mapa_ativo.obter_posicao_passagem()
                 if posicao_passagem:
                     coluna, linha = posicao_passagem
-                    jogador.posicao_pixel_x = coluna * mapa_ativo.largura_quadriculo
-                    jogador.posicao_pixel_y = linha * mapa_ativo.altura_quadriculo + config.JOGABILIDADE['ajuste_posicao_inicial_jogador']
+                    jogador.teleportar_para_passagem(coluna, linha)
 
             terminou_escavacao, valor_dado = jogador.processar_escavacao(tempo_decorrido)
             investigando_ativo, _ = mapa_ativo.atualizar_investigacao(tempo_decorrido)
 
             try:
                 if investigacao_ativa_anterior and not investigando_ativo and jogador is not None:
-                    jogador.parar_som_investigando()
+                    if interface is not None:
+                        interface.parar_som_investigando(jogador)
             except Exception:
                 pass
             investigacao_ativa_anterior = investigando_ativo
 
             if terminou_escavacao and valor_dado is not None:
-                tipo_mapa = getattr(mapa_ativo, 'tipo', 'DESERTO')
-                combate.verificar_e_iniciar_combate(valor_dado, tipo_mapa)
-
                 if interface.verificar_se_jogador_morreu() and not tela_morte.esta_visivel and not combate.combate_ativo:
                     tela_morte.aguardar_clique_apos_morte()
 

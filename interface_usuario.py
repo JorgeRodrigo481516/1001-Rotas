@@ -72,17 +72,70 @@ class InterfaceUsuario:
         
         self.tela_leitura = TelaLeitura(self.janela)
         try:
-            self.som_bebendo = Sound("assets/bebendo.wav")
+            self.som_bebendo = Sound("assets/bebendo.ogg")
         except Exception:
             self.som_bebendo = None
         try:
-            self.som_escavando = Sound("assets/escavando.oga")
+            self.som_escavando = Sound("assets/escavando.ogg")
         except Exception:
             self.som_escavando = None
         try:
-            self.som_investigando = Sound("assets/investigando.wav")
+            self.som_investigando = Sound("assets/investigando.ogg")
         except Exception:
             self.som_investigando = None
+
+        self.trilha_sonora = None
+
+    def iniciar_trilha(self, caminho="assets/trilha.ogg", volume=5):
+        if getattr(self, 'trilha_sonora', None) is not None:
+            return
+        try:
+            self.trilha_sonora = Sound(caminho)
+            self.trilha_sonora.set_repeat(True)
+            self.trilha_sonora.set_volume(volume)
+            self.trilha_sonora.play()
+        except Exception:
+            pass
+
+    def iniciar_som_escavando(self, jogador=None):
+        try:
+            if getattr(self, 'som_escavando', None):
+                self.som_escavando.set_repeat(True)
+                self.som_escavando.play()
+                if jogador is not None:
+                    jogador._tocando_som_escavando = True
+        except Exception:
+            pass
+
+    def parar_som_escavando(self, jogador=None):
+        try:
+            if getattr(self, 'som_escavando', None):
+                self.som_escavando.set_repeat(False)
+                self.som_escavando.stop()
+                if jogador is not None:
+                    jogador._tocando_som_escavando = False
+        except Exception:
+            pass
+
+    def iniciar_som_investigando(self, jogador=None):
+        try:
+            if getattr(self, 'som_investigando', None):
+                self.som_investigando.set_repeat(True)
+                self.som_investigando.play()
+                if jogador is not None:
+                    jogador._tocando_som_investigando = True
+        except Exception:
+            pass
+
+    def parar_som_investigando(self, jogador=None):
+        try:
+            if getattr(self, 'som_investigando', None):
+                self.som_investigando.set_repeat(False)
+                self.som_investigando.stop()
+                if jogador is not None:
+                    jogador._tocando_som_investigando = False
+        except Exception:
+            pass
 
     def calcular_disposicao(self):
         quadriculos_painel = config.INTERFACE_USUARIO.get('altura_painel_em_quadriculos', 2)

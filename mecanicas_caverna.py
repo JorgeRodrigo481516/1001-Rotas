@@ -76,7 +76,7 @@ class MecanicasCaverna:
             self._temporizador_queda += tempo_decorrido
             if self._temporizador_queda >= self._duracao_queda:
                 self.morreu_por_queda = True
-                print(f"Caiu em um buraco!")
+                interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Caiu em um buraco!') if interface else print('Caiu em um buraco!'))
         else:
             self._esta_em_queda = False
             self._temporizador_queda = 0.0
@@ -106,12 +106,11 @@ class MecanicasCaverna:
                 posicao_atual = (coluna_sprite, linha_sprite)
                 if posicao_atual != self.mapa.posicao_runa_final:
                     self.transformar_runa_em_inimigo(coluna_sprite, linha_sprite)
-                    print(f"Ativou uma runa! Golem apareceu!")
-                    
+                    interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Ativou uma runa! Golem apareceu!') if interface else print('Ativou uma runa! Golem apareceu!'))
                     if self.sistema_combate:
                         self.sistema_combate.iniciar_combate(nome_inimigo='golem')
                 else:
-                    print(f"Ativou a runa final! Venceu!")
+                    interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Ativou a runa final! Venceu!') if interface else print('Ativou a runa final! Venceu!'))
                     try:
                         interface = getattr(self.jogador, 'interface', None)
                         if interface:
@@ -143,7 +142,7 @@ class MecanicasCaverna:
             if distancia < config.JOGABILIDADE.get('limiar_distancia_centro_runa', 15):
                 esta_no_centro = True
                 if not self._ja_printou_passagem:
-                    print(f"Passagem encontrada! Pressione parado para entrar...")
+                    interface = getattr(self.jogador, 'interface', None); (interface.exibir_mensagem('sede','Passagem encontrada! Pressione parado para entrar...') if interface else print('Passagem encontrada! Pressione parado para entrar...'))
                     self._ja_printou_passagem = True
 
         if esta_no_centro:
@@ -160,21 +159,7 @@ class MecanicasCaverna:
             self._ja_printou_passagem = False
     
     def transformar_runa_em_inimigo(self, coluna, linha):
-        from PPlay.sprite import Sprite
-        
-        quadriculo = self.mapa.obter_quadriculo_por_coordenada_grade(coluna, linha)
-        if not quadriculo:
-            return
-
-        caminho_base = config.RECURSOS.get('padrao_base_quadriculo_caverna')
-        novo_caminho = caminho_base.replace('1.png', f'{config.TIPO_TERRENO_INIMIGO}.png')
-        
-        nova_imagem = Sprite(novo_caminho)
-        nova_imagem.x = quadriculo.imagem_quadriculo.x
-        nova_imagem.y = quadriculo.imagem_quadriculo.y
-        
-        quadriculo.imagem_quadriculo = nova_imagem
-        quadriculo.indice_variacao_terreno = config.TIPO_TERRENO_INIMIGO
+        self.mapa.transformar_quadriculo_em_inimigo(coluna, linha)
     
     def esta_caindo(self):
         return self._esta_em_queda

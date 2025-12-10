@@ -217,10 +217,8 @@ class Jogador:
                      if self.interface:
                         self.interface.aplicar_custo_investigacao()
                      try:
-                         if self.interface and getattr(self.interface, 'som_investigando', None):
-                             self.interface.som_investigando.set_repeat(True)
-                             self.interface.som_investigando.play()
-                             self._tocando_som_investigando = True
+                         if self.interface:
+                             self.interface.iniciar_som_investigando(self)
                      except Exception:
                          pass
 
@@ -232,9 +230,8 @@ class Jogador:
             iniciou = self.mapa.iniciar_escavacao(coluna, linha, tem_pa=possui_pa)
             if iniciou:
                 try:
-                    if self.interface and getattr(self.interface, 'som_escavando', None):
-                        self.interface.som_escavando.set_repeat(True)
-                        self.interface.som_escavando.play()
+                    if self.interface:
+                        self.interface.iniciar_som_escavando(self)
                 except Exception:
                     pass
 
@@ -337,13 +334,22 @@ class Jogador:
         self.posicao_pixel_x = self.mapa.largura_quadriculo
         self.posicao_pixel_y = self.janela.height - (config.INTERFACE_USUARIO['altura_painel_em_quadriculos'] * self.mapa.altura_quadriculo) - max(0, altura_espaco_painel)
 
+    def teleportar_para_passagem(self, coluna, linha):
+        self.posicao_pixel_x = coluna * self.mapa.largura_quadriculo
+        self.posicao_pixel_y = linha * self.mapa.altura_quadriculo + config.JOGABILIDADE['ajuste_posicao_inicial_jogador']
+        try:
+            quad = self.mapa.obter_quadriculo_por_coordenada_grade(coluna, linha)
+            if quad and getattr(quad, 'eh_passagem', False) and not quad.tem_sobreposicao():
+                quad.adicionar_sobreposicao(config.RECURSOS['passagem'])
+        except Exception:
+            pass
+
     def processar_escavacao(self, tempo_decorrido):
         if not self.interface:
             return False, None
         try:
-            if not self.mapa.esta_escavando() and getattr(self.interface, 'som_escavando', None):
-                self.interface.som_escavando.set_repeat(False)
-                self.interface.som_escavando.stop()
+            if not self.mapa.esta_escavando() and self.interface:
+                self.interface.parar_som_escavando(self)
         except Exception:
             pass
         
@@ -370,18 +376,20 @@ class Jogador:
                 self.exibir_mensagem_cabeca(config.MENSAGENS['erro_escavacao_falha'], 
                     duracao=config.INTERFACE_USUARIO['duracao_msg_cabeca_padrao'])
             try:
-                if getattr(self.interface, 'som_escavando', None):
-                    self.interface.som_escavando.set_repeat(False)
-                    self.interface.som_escavando.stop()
-                    self._tocando_som_escavando = False
+                if self.interface:
+                    self.interface.parar_som_escavando(self)
             except Exception:
                 pass
             try:
-                if getattr(self.interface, 'som_investigando', None) and getattr(self.mapa, 'esta_investigando', None):
+                if self.interface and getattr(self.mapa, 'esta_investigando', None):
                     if not self.mapa.esta_investigando():
-                        self.interface.som_investigando.set_repeat(False)
-                        self.interface.som_investigando.stop()
-                        self._tocando_som_investigando = False
+                        self.interface.parar_som_investigando(self)
+            except Exception:
+                pass
+            try:
+                if valor_dado is not None and getattr(self, 'sistema_combate', None):
+                    tipo_mapa = getattr(self.mapa, 'tipo', 'DESERTO')
+                    self.sistema_combate.verificar_e_iniciar_combate(valor_dado, tipo_mapa)
             except Exception:
                 pass
             return True, valor_dado
@@ -414,11 +422,3 @@ class Jogador:
         lendo = self.interface.lendo_pergaminho if self.interface else False
         return self.mapa.esta_escavando() or self.mapa.esta_investigando() or self._bebendo or caindo or lendo
 
-    def parar_som_investigando(self):
-        try:
-            if self.interface and getattr(self.interface, 'som_investigando', None):
-                self.interface.som_investigando.set_repeat(False)
-                self.interface.som_investigando.stop()
-        except Exception:
-            pass
-        self._tocando_som_investigando = False

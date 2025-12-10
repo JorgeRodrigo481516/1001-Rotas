@@ -88,17 +88,8 @@ PERGAMINHOS = [
     }
 ]
 
-PERGAMINHOS_ATIVOS = None
-
-def embaralhar_pergaminhos(seed=None):
-    global PERGAMINHOS_ATIVOS
-    rng = random.Random(seed)
-    ordem = list(range(len(PERGAMINHOS)))
-    rng.shuffle(ordem)
-    PERGAMINHOS_ATIVOS = [PERGAMINHOS[i] for i in ordem]
-
 def obter_pergaminhos():
-    return PERGAMINHOS_ATIVOS if PERGAMINHOS_ATIVOS is not None else PERGAMINHOS
+    return PERGAMINHOS
 
 
 class Popup:
@@ -400,8 +391,6 @@ class TelaLeitura(Popup):
                         for l in linhas:
                             self.janela.draw_text(l, x_texto_base, y_texto, size=16, color=config.CORES['branco'])
                             y_texto += 26
-            except Exception:
-                pass
             except Exception:
                 pass
 

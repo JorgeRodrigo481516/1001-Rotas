@@ -324,6 +324,23 @@ class Mapa:
         self.dicionario_quadriculos_por_coordenada[(coluna, linha)] = novo_quadriculo
         return novo_quadriculo
 
+    def transformar_quadriculo_em_inimigo(self, coluna, linha):
+        quadriculo = self.obter_quadriculo_por_coordenada_grade(coluna, linha)
+        if not quadriculo:
+            return
+
+        caminho_base = config.RECURSOS.get('padrao_base_quadriculo_caverna')
+        if not caminho_base:
+            return
+        novo_caminho = caminho_base.replace('1.png', f'{config.TIPO_TERRENO_INIMIGO}.png')
+
+        nova_imagem = Sprite(novo_caminho)
+        nova_imagem.x = quadriculo.imagem_quadriculo.x
+        nova_imagem.y = quadriculo.imagem_quadriculo.y
+
+        quadriculo.imagem_quadriculo = nova_imagem
+        quadriculo.indice_variacao_terreno = config.TIPO_TERRENO_INIMIGO
+
     def obter_posicao_passagem(self):
         for quadriculo in self.lista_quadriculos:
             if getattr(quadriculo, 'eh_passagem', False):

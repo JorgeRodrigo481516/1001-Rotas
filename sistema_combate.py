@@ -60,46 +60,7 @@ class SistemaCombate:
             'golem': {'imagem': self.imagem_golem, 'dano_base': config.COMBATE['dano_base_golem']}
         }
 
-        if self.tela_combate is None:
-            self._posicionar_elementos()
-
-    def _posicionar_elementos(self):
-        self.fundo_combate.x = (self.janela.width - self.fundo_combate.width) / 2
-        self.fundo_combate.y = (self.janela.height - self.fundo_combate.height) / 2 + 20
-        
-        centro_x = self.fundo_combate.x + self.fundo_combate.width / 2
-        centro_y = self.fundo_combate.y + self.fundo_combate.height / 2
-        
-        self.protagonista.x = centro_x - self.protagonista.width - 50
-        self.protagonista.y = centro_y - self.protagonista.height / 2 - 30
-        
-        self.imagem_tempestade.x = centro_x + 50
-        self.imagem_tempestade.y = centro_y - self.imagem_tempestade.height / 2 - 30
-        
-        self.imagem_serpente.x = centro_x + 50
-        self.imagem_serpente.y = centro_y - self.imagem_serpente.height / 2 - 30
-
-        self.imagem_golem.x = centro_x + 50
-        self.imagem_golem.y = centro_y - self.imagem_golem.height / 2 - 30
-        
-        espacamento = 20
-        largura_total_botoes = (self.botao_atacar.width + self.botao_defender.width + 
-                               self.botao_item.width + self.botao_fugir.width + espacamento * 3)
-        
-        inicio_x = self.fundo_combate.x + (self.fundo_combate.width - largura_total_botoes) / 2
-        y_botoes = self.fundo_combate.y + self.fundo_combate.height - self.botao_atacar.height - 30 - 15
-        
-        self.botao_atacar.x = inicio_x
-        self.botao_atacar.y = y_botoes
-        
-        self.botao_defender.x = self.botao_atacar.x + self.botao_atacar.width + espacamento
-        self.botao_defender.y = y_botoes
-        
-        self.botao_item.x = self.botao_defender.x + self.botao_defender.width + espacamento
-        self.botao_item.y = y_botoes
-        
-        self.botao_fugir.x = self.botao_item.x + self.botao_item.width + espacamento
-        self.botao_fugir.y = y_botoes
+        # Posicionamento agora é responsabilidade de `TelaCombate` (popup.py)
 
     def verificar_e_iniciar_combate(self, valor_dado_escavacao, tipo_mapa='DESERTO'):
         chance_combate = (config.JOGABILIDADE['dado_escavacao'] - valor_dado_escavacao) * config.COMBATE['multiplicador_chance_combate']
@@ -282,30 +243,3 @@ class SistemaCombate:
         if not self.combate_ativo:
             return
         self.tela_combate.desenhar(inimigo_atual=self.inimigo_atual, mensagens=getattr(self, 'mensagens', None))
-        return
-
-        self.fundo_combate.draw()
-        self.protagonista.draw()
-        self.inimigo_atual['imagem'].draw()
-
-        self.botao_atacar.draw()
-        self.botao_defender.draw()
-        self.botao_item.draw()
-        self.botao_fugir.draw()
-
-        if self.mensagens:
-            x_atual = self.fundo_combate.x + 40 + 10
-            y_texto = self.fundo_combate.y + 40
-
-            for texto, cor in self.mensagens:
-                self.janela.draw_text(
-                    texto,
-                    x_atual,
-                    y_texto,
-                    size=config.INTERFACE_USUARIO['tamanho_fonte_combate'],
-                    color=cor,
-                    font_name="Arial",
-                    bold=True
-                )
-                largura_estimada = len(texto) * 6
-                x_atual += largura_estimada
