@@ -480,7 +480,7 @@ class Mapa:
                 if (quadriculo.item == 'pa' and tem_pa) or (quadriculo.item == 'faca' and tem_faca):
                     item = f"{quadriculo.item}_duplicada"
                     print(f"Ja tem {quadriculo.item} no inventario")
-                    return concluido, sucesso, item, dado
+                    return concluido, sucesso, item, valor_dado
 
         bonus_dado = config.JOGABILIDADE['bonus_escavacao_pa'] if tem_pa else 0
         dado_bruto = random.randint(0, config.JOGABILIDADE['dado_escavacao'])
