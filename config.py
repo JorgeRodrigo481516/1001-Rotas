@@ -141,7 +141,6 @@ JOGABILIDADE = {
     'quantidade_pergaminhos': 8,
 }
 
-# Parâmetros adicionais de gameplay configuráveis (valores padrão)
 JOGABILIDADE.update({
     'tempo_para_ativar_foco': 0.5,
     'duracao_queda_buraco': 0.5,
@@ -170,7 +169,6 @@ COMBATE = {
     'tempo_mensagem_curto': 3.0,
 }
 
-# Pequenos ajustes de UX / tempos
 COMBATE.update({
     'duracao_encerramento_vitoria': 3.0,
     'duracao_encerramento_fuga': 2.0,

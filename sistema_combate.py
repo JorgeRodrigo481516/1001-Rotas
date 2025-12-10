@@ -31,13 +31,11 @@ import random
 
 class SistemaCombate:
     def __init__(self, janela: Window, interface, tela_combate):
-        # agora exigimos um objeto `TelaCombate` — responsabilidade de UI foi centralizada
         self.janela = janela
         self.interface = interface
         self.combate_ativo = False
         self.tela_combate = tela_combate
 
-        # Utiliza diretamente os elementos providos por TelaCombate
         self.tela_combate.atualizar_posicoes()
         self.fundo_combate = self.tela_combate.fundo_combate
         self.protagonista = self.tela_combate.protagonista
@@ -136,7 +134,6 @@ class SistemaCombate:
         self.clique_ja_processado = False
         self.encerrando_combate = False
         self.temporizador_encerramento = 0.0
-        # notificar e exibir a UI de combate vinculada
         self.tela_combate.iniciar_combate(self.inimigo_atual, None, callback_resultado=None)
 
     def atualizar(self, tempo_decorrido, dispositivo_mouse):
@@ -153,7 +150,6 @@ class SistemaCombate:
             if self.temporizador_encerramento <= 0:
                 self.combate_ativo = False
                 self.encerrando_combate = False
-                # ocultar UI de combate vinculada
                 self.tela_combate.ocultar()
             return
 
@@ -285,7 +281,6 @@ class SistemaCombate:
     def desenhar(self):
         if not self.combate_ativo:
             return
-        # delega o desenho para a TelaCombate vinculada
         self.tela_combate.desenhar(inimigo_atual=self.inimigo_atual, mensagens=getattr(self, 'mensagens', None))
         return
 

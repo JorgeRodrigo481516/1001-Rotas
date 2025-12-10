@@ -34,6 +34,71 @@ NOTAS DE IMPLEMENTAÇÃO:
 from PPlay.window import Window
 from PPlay.gameimage import GameImage
 import config
+import random
+
+
+PERGAMINHOS = [
+    {
+        'a': "Ó Deus, tu és o meu Deus forte; eu te busco ansiosamente; a minha alma tem sede de ti; o meu corpo te almeja, numa terra árida, exausta, sem água.",
+        'a_ref': "Salmos 63:1",
+        'b': "Aquele, porém, que beber da água que eu lhe der nunca mais terá sede; pelo contrário, a água que eu lhe der será nele uma fonte a jorrar para a vida eterna.",
+        'b_ref': "João 4:14"
+    },
+    {
+        'a': "Se buscares a sabedoria como a prata e como a tesouros escondidos a procurares, então, entenderás o temor do SENHOR e acharás o conhecimento de Deus.",
+        'a_ref': "Provérbios 2:4-5",
+        'b': "O reino dos céus é semelhante a um tesouro oculto no campo, o qual certo homem, tendo-o achado, escondeu. E, transbordante de alegria, vai, vende tudo o que tem e compra aquele campo.",
+        'b_ref': "Mateus 13:44"
+    },
+    {
+        'a': "Vaidade de vaidades, diz o Pregador; vaidade de vaidades, tudo é vaidade.",
+        'a_ref': "Eclesiastes 1:2",
+        'b': "O espírito é o que vivifica; a carne para nada aproveita; as palavras que eu vos tenho dito são espírito e são vida.",
+        'b_ref': "João 6:63"
+    },
+    {
+        'a': "O coração do homem traça o seu caminho, mas o SENHOR lhe dirige os passos.",
+        'a_ref': "Provérbios 16:9",
+        'b': "Respondeu-lhe Jesus: Eu sou o caminho, e a verdade, e a vida; ninguém vem ao Pai senão por mim.",
+        'b_ref': "João 14:6"
+    },
+    {
+        'a': "Não to mandei eu? Sê forte e corajoso; não temas, nem te espantes, porque o SENHOR, teu Deus, é contigo por onde quer que andares.",
+        'a_ref': "Josué 1:9",
+        'b': "Estas coisas vos tenho dito para que tenhais paz em mim. No mundo, passais por aflições; mas tende bom ânimo; eu venci o mundo.",
+        'b_ref': "João 16:33"
+    },
+    {
+        'a': "Se eu digo: as trevas, com efeito, me encobrirão, e a luz ao redor de mim se fará noite, até as próprias trevas não te serão escuras: as trevas e a luz são a mesma coisa.",
+        'a_ref': "Salmos 139:11-12",
+        'b': "De novo, lhes falava Jesus, dizendo: Eu sou a luz do mundo; quem me segue não andará nas trevas; pelo contrário, terá a luz da vida.",
+        'b_ref': "João 8:12"
+    },
+    {
+        'a': "Faz forte ao cansado e multiplica as forças ao que não tem nenhum vigor.",
+        'a_ref': "Isaías 40:29",
+        'b': "Vinde a mim, todos os que estais cansados e sobrecarregados, e eu vos aliviarei.",
+        'b_ref': "Mateus 11:28"
+    },
+    {
+        'a': "Tudo fez Deus formoso no seu devido tempo; também pôs a eternidade no coração do homem, sem que este possa descobrir as obras que Deus fez desde o princípio até ao fim.",
+        'a_ref': "Eclesiastes 3:11",
+        'b': "Disse-me ainda: Tudo está feito. Eu sou o Alfa e o Ômega, o Princípio e o Fim. Eu, a quem tem sede, darei de graça da fonte da água da vida.",
+        'b_ref': "Apocalipse 21:6"
+    }
+]
+
+PERGAMINHOS_ATIVOS = None
+
+def embaralhar_pergaminhos(seed=None):
+    global PERGAMINHOS_ATIVOS
+    rng = random.Random(seed)
+    ordem = list(range(len(PERGAMINHOS)))
+    rng.shuffle(ordem)
+    PERGAMINHOS_ATIVOS = [PERGAMINHOS[i] for i in ordem]
+
+def obter_pergaminhos():
+    return PERGAMINHOS_ATIVOS if PERGAMINHOS_ATIVOS is not None else PERGAMINHOS
 
 
 class Popup:
@@ -68,7 +133,7 @@ class TelaMorte(Popup):
 
         self.botao_reiniciar = GameImage(config.RECURSOS['botao_reiniciar'])
         self.botao_reiniciar.x = (janela.width - self.botao_reiniciar.width) / 2
-        self.botao_reiniciar.y = self.fundo_morte.y + self.fundo_morte.height - config.INTERFACE_USUARIO['deslocamento_y_reiniciar']
+        self.botao_reiniciar.y = self.fundo_morte.y + self.fundo_morte.height - config.INTERFACE_USUARIO['deslocamento_y_reiniciar'] + 15
 
         self.tempo = 0.0
         self.atraso_clique = config.INTERFACE_USUARIO.get('atraso_clique_morte', 0.6)
@@ -204,7 +269,6 @@ class TelaLeitura(Popup):
         caminho_fundo = config.RECURSOS.get('fundo_leitura')
         caminho_back = config.RECURSOS.get('botao_back')
         caminho_next = config.RECURSOS.get('botao_next')
-
         self.imagem_pergaminho = GameImage(caminho_pergaminho) if caminho_pergaminho else None
         self.fundo_leitura = GameImage(caminho_fundo) if caminho_fundo else None
         if self.fundo_leitura is not None:
@@ -213,10 +277,12 @@ class TelaLeitura(Popup):
 
         self.botao_back = GameImage(caminho_back) if caminho_back else None
         self.botao_next = GameImage(caminho_next) if caminho_next else None
+        caminho_reiniciar = config.RECURSOS.get('botao_reiniciar')
+        self.botao_reiniciar = GameImage(caminho_reiniciar) if caminho_reiniciar else None
 
         self._clique_processado = False
 
-    def desenhar(self, pergaminhos_coletados, indice_leitura_atual, lendo_pergaminho):
+    def desenhar(self, pergaminhos_coletados, indice_leitura_atual, lendo_pergaminho, referencia=False):
         if not lendo_pergaminho:
             return
         if self.fundo_leitura is not None:
@@ -226,7 +292,9 @@ class TelaLeitura(Popup):
             texto = f"Fragmento de Historia #{indice_leitura_atual + 1}"
             largura_texto = len(texto) * 10
             x_texto = self.fundo_leitura.x + (self.fundo_leitura.width - largura_texto) / 2
-            self.janela.draw_text(texto, x_texto, self.fundo_leitura.y + 50, size=20, color=config.CORES['branco'], bold=True)
+            title_y = self.fundo_leitura.y + 50
+            title_height = 20
+            self.janela.draw_text(texto, x_texto, title_y, size=20, color=config.CORES['branco'], bold=True)
 
             instrucao = "Pressione 'I' para fechar"
             largura_instrucao = len(instrucao) * 5
@@ -234,10 +302,115 @@ class TelaLeitura(Popup):
             y_instrucao = self.fundo_leitura.y + self.fundo_leitura.height - 150
             self.janela.draw_text(instrucao, x_instrucao, y_instrucao, size=14, color=config.CORES['branco'])
 
-        espacamento = 50
+            base_apos_titulo = title_y + title_height + 10
+
+            try:
+                conteudo = None
+                referencia_texto = None
+                pergaminhos_ativos = obter_pergaminhos()
+                if 0 <= indice_leitura_atual < len(pergaminhos_ativos):
+                    chave = 'b' if referencia else 'a'
+                    conteudo = pergaminhos_ativos[indice_leitura_atual].get(chave)
+                    referencia_texto = pergaminhos_ativos[indice_leitura_atual].get(f"{chave}_ref")
+
+                if referencia:
+                    a_text = pergaminhos_ativos[indice_leitura_atual].get('a') if 0 <= indice_leitura_atual < len(pergaminhos_ativos) else None
+                    a_ref = pergaminhos_ativos[indice_leitura_atual].get('a_ref') if 0 <= indice_leitura_atual < len(pergaminhos_ativos) else None
+                    b_text = pergaminhos_ativos[indice_leitura_atual].get('b') if 0 <= indice_leitura_atual < len(pergaminhos_ativos) else None
+                    b_ref = pergaminhos_ativos[indice_leitura_atual].get('b_ref') if 0 <= indice_leitura_atual < len(pergaminhos_ativos) else None
+
+                    y_line = base_apos_titulo
+                    if a_ref:
+                        largura_ref = len(a_ref) * 8
+                        x_ref = self.fundo_leitura.x + (self.fundo_leitura.width - largura_ref) / 2
+                        self.janela.draw_text(a_ref, x_ref, y_line, size=16, color=config.CORES['branco'], bold=True)
+                        y_line += 26
+
+                    if a_text:
+                        max_chars = 76
+                        linhas_a = []
+                        palavras = a_text.split(' ')
+                        linha_atual = ''
+                        for p in palavras:
+                            if len(linha_atual) + 1 + len(p) <= max_chars:
+                                linha_atual = (linha_atual + ' ' + p).strip()
+                            else:
+                                linhas_a.append(linha_atual)
+                                linha_atual = p
+                        if linha_atual:
+                            linhas_a.append(linha_atual)
+
+                        x_texto_base = self.fundo_leitura.x + 50
+                        for l in linhas_a:
+                            self.janela.draw_text(l, x_texto_base, y_line, size=16, color=config.CORES['branco'])
+                            y_line += 26
+
+                    y_line += 8
+
+                    if b_ref:
+                        largura_ref = len(b_ref) * 8
+                        x_ref = self.fundo_leitura.x + (self.fundo_leitura.width - largura_ref) / 2
+                        self.janela.draw_text(b_ref, x_ref, y_line, size=16, color=config.CORES['branco'], bold=True)
+                        y_line += 26
+
+                    if b_text:
+                        max_chars = 76
+                        linhas_b = []
+                        palavras = b_text.split(' ')
+                        linha_atual = ''
+                        for p in palavras:
+                            if len(linha_atual) + 1 + len(p) <= max_chars:
+                                linha_atual = (linha_atual + ' ' + p).strip()
+                            else:
+                                linhas_b.append(linha_atual)
+                                linha_atual = p
+                        if linha_atual:
+                            linhas_b.append(linha_atual)
+
+                        x_texto_base = self.fundo_leitura.x + 50
+                        for l in linhas_b:
+                            self.janela.draw_text(l, x_texto_base, y_line, size=16, color=config.CORES['branco'])
+                            y_line += 26
+                else:
+                    if referencia_texto:
+                        largura_ref = len(referencia_texto) * 8
+                        x_ref = self.fundo_leitura.x + (self.fundo_leitura.width - largura_ref) / 2
+                        y_ref = base_apos_titulo
+                        self.janela.draw_text(referencia_texto, x_ref, y_ref, size=16, color=config.CORES['branco'], bold=True)
+
+                    if conteudo:
+                        max_chars = 76
+                        linhas = []
+                        palavras = conteudo.split(' ')
+                        linha_atual = ''
+                        for p in palavras:
+                            if len(linha_atual) + 1 + len(p) <= max_chars:
+                                linha_atual = (linha_atual + ' ' + p).strip()
+                            else:
+                                linhas.append(linha_atual)
+                                linha_atual = p
+                        if linha_atual:
+                            linhas.append(linha_atual)
+
+                        if referencia_texto:
+                            y_texto = base_apos_titulo + 26
+                        else:
+                            y_texto = base_apos_titulo
+                        x_texto_base = self.fundo_leitura.x + 50
+                        for l in linhas:
+                            self.janela.draw_text(l, x_texto_base, y_texto, size=16, color=config.CORES['branco'])
+                            y_texto += 26
+            except Exception:
+                pass
+            except Exception:
+                pass
+
+        espacamento = 20
         botoes = []
         if self.botao_back is not None:
             botoes.append(self.botao_back)
+        if referencia and self.botao_reiniciar is not None:
+            botoes.append(self.botao_reiniciar)
         if self.botao_next is not None:
             botoes.append(self.botao_next)
 
@@ -265,14 +438,20 @@ class TelaLeitura(Popup):
                     self.botao_back.draw()
                 x_atual += self.botao_back.width + espacamento
 
+            if referencia and self.botao_reiniciar is not None:
+                self.botao_reiniciar.x = x_atual
+                self.botao_reiniciar.y = y_botoes
+                self.botao_reiniciar.draw()
+                x_atual += self.botao_reiniciar.width + espacamento
+
             if self.botao_next is not None:
                 self.botao_next.x = x_atual
                 self.botao_next.y = y_botoes
                 if has_next:
                     self.botao_next.draw()
 
-    def processar_evento(self, dispositivo_mouse, pergaminhos_coletados, indice_leitura_atual):
-        if not (self.botao_back or self.botao_next):
+    def processar_evento(self, dispositivo_mouse, pergaminhos_coletados, indice_leitura_atual, referencia=False):
+        if not (self.botao_back or self.botao_next or (referencia and self.botao_reiniciar)):
             return None
 
         if dispositivo_mouse.is_button_pressed(1):
@@ -281,6 +460,8 @@ class TelaLeitura(Popup):
 
                 lista_pergs = sorted(pergaminhos_coletados) if pergaminhos_coletados else []
                 if not lista_pergs:
+                    if referencia and self.botao_reiniciar is not None and dispositivo_mouse.is_over_object(self.botao_reiniciar):
+                        return 'RESTART'
                     return None
 
                 if indice_leitura_atual not in lista_pergs:
@@ -295,6 +476,9 @@ class TelaLeitura(Popup):
                     if pos > 0:
                         return lista_pergs[pos - 1]
                     return None
+
+                if referencia and self.botao_reiniciar is not None and dispositivo_mouse.is_over_object(self.botao_reiniciar):
+                    return 'RESTART'
 
                 if self.botao_next is not None and dispositivo_mouse.is_over_object(self.botao_next):
                     if pos < len(lista_pergs) - 1:

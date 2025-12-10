@@ -26,6 +26,7 @@ from mapa import Mapa
 from jogador import Jogador
 from interface_usuario import InterfaceUsuario
 import config
+import popup
 from popup import TelaMorte, TelaCombate
 from sistema_combate import SistemaCombate
 from mecanicas_caverna import MecanicasCaverna
@@ -44,9 +45,17 @@ jogador = None
 combate = None
 controlador_mecanicas_caverna = None
 tela_combate = None
+primeira_inicializacao = True
 
 def inicializar_recursos_jogo():
     global mapa_deserto, mapa_caverna, mapa_ativo, interface, jogador, combate, controlador_mecanicas_caverna
+    global primeira_inicializacao
+    if primeira_inicializacao:
+        try:
+            popup.embaralhar_pergaminhos()
+        except Exception:
+            pass
+        primeira_inicializacao = False
     
     if mapa_deserto is None:
         mapa_deserto = Mapa(janela)
@@ -87,7 +96,10 @@ while True:
 
     if not tela_morte.esta_visivel:
         interface.atualizar(tempo_decorrido)
-        interface.processar_input_mouse(mouse_entrada)
+        resultado_mouse = interface.processar_input_mouse(mouse_entrada)
+        if resultado_mouse == 'RESTART':
+            inicializar_recursos_jogo()
+            continue
 
         if interface.verificar_se_jogador_morreu() and not tela_morte.esta_visivel and not combate.combate_ativo:
             tela_morte.aguardar_clique_apos_morte()
@@ -112,8 +124,16 @@ while True:
                         mapa_caverna = Mapa(janela)
                         posicao_passagem = mapa_deserto.obter_posicao_passagem()
                         mapa_caverna.construir(tipo='CAVERNA', posicao_passagem_anterior=posicao_passagem)
+                        try:
+                            print(f"Runa final em: {mapa_caverna.posicao_runa_final}")
+                        except Exception:
+                            print("Runa final: desconhecida")
                     
                     mapa_ativo = mapa_caverna
+                    try:
+                        print(f"Entrando na caverna. Runa final em: {mapa_ativo.posicao_runa_final}")
+                    except Exception:
+                        print("Entrando na caverna. Runa final: desconhecida")
                     interface.definir_multiplicador_custo(config.JOGABILIDADE['multiplicador_custo_caverna'])
                     print("Entrou na caverna!")
                 else:

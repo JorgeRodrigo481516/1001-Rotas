@@ -67,8 +67,8 @@ class InterfaceUsuario:
         self.modo_inventario = 'padrao' 
         self.lendo_pergaminho = False
         self.indice_leitura_atual = None
+        self.leitura_referencia = False
         
-        # UI de leitura (delegada a TelaLeitura)
         self.tela_leitura = TelaLeitura(self.janela)
 
     def calcular_disposicao(self):
@@ -175,8 +175,7 @@ class InterfaceUsuario:
             self.desenhar_inventario_pergaminhos()
 
         if self.lendo_pergaminho:
-            # delega desenho do popup de leitura para TelaLeitura
-            self.tela_leitura.desenhar(self.pergaminhos_coletados, self.indice_leitura_atual, self.lendo_pergaminho)
+            self.tela_leitura.desenhar(self.pergaminhos_coletados, self.indice_leitura_atual, self.lendo_pergaminho, referencia=self.leitura_referencia)
 
     def desenhar_inventario_pergaminhos(self):
         imagem_pergaminho = getattr(self.tela_leitura, 'imagem_pergaminho', None)
@@ -187,31 +186,30 @@ class InterfaceUsuario:
                 imagem_pergaminho.y = espaco_atual.y + (espaco_atual.height - imagem_pergaminho.height) / 2
                 imagem_pergaminho.draw()
 
-
-        # a renderização dos botões de navegação e do conteúdo do pergaminho
-        # foi delegada para `TelaLeitura` em `popup.py`.
-
     def alternar_modo_inventario(self, modo):
         self.modo_inventario = modo
         if modo == 'padrao':
             self.fechar_leitura()
 
-    def abrir_leitura(self, indice):
+    def abrir_leitura(self, indice, referencia=False):
         self.lendo_pergaminho = True
         self.indice_leitura_atual = indice
+        self.leitura_referencia = bool(referencia)
 
     def processar_input_mouse(self, dispositivo_mouse):
         if not self.lendo_pergaminho:
-            return
+            return None
 
-        # delega o processamento de cliques ao popup de leitura
-        novo_indice = self.tela_leitura.processar_evento(dispositivo_mouse, self.pergaminhos_coletados, self.indice_leitura_atual)
-        if novo_indice is not None:
-            self.indice_leitura_atual = novo_indice
+        resultado = self.tela_leitura.processar_evento(dispositivo_mouse, self.pergaminhos_coletados, self.indice_leitura_atual, referencia=self.leitura_referencia)
+        if resultado is not None and resultado != 'RESTART':
+            self.indice_leitura_atual = resultado
+            return None
+        return resultado
 
     def fechar_leitura(self):
         self.lendo_pergaminho = False
         self.indice_leitura_atual = None
+        self.leitura_referencia = False
 
     def _desenhar_barras_sede_e_sol(self, imagem_barra, valor):
         if valor <= 0:

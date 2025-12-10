@@ -93,6 +93,9 @@ class MecanicasCaverna:
                 esta_no_centro_runa = True
 
         if esta_no_centro_runa and not esta_movendo:
+            interface = getattr(self.jogador, 'interface', None)
+            if interface and getattr(interface, 'lendo_pergaminho', False):
+                return
             self._esta_ativando_runa = True
             self._temporizador_ativacao += tempo_decorrido
             
@@ -109,6 +112,14 @@ class MecanicasCaverna:
                         self.sistema_combate.iniciar_combate(nome_inimigo='golem')
                 else:
                     print(f"Ativou a runa final! Venceu!")
+                    try:
+                        interface = getattr(self.jogador, 'interface', None)
+                        if interface:
+                            lista = getattr(interface, 'pergaminhos_coletados', [])
+                            indice_inicial = lista[0] if lista else 0
+                            interface.abrir_leitura(indice_inicial, referencia=True)
+                    except Exception:
+                        pass
         else:
             if esta_movendo:
                 self._esta_ativando_runa = False
