@@ -26,6 +26,7 @@ NOTAS DE IMPLEMENTAÇÃO:
 -------------------------------------------------------------------
 """
 from PPlay.sprite import Sprite
+from PPlay.sound import Sound
 from popup import TelaLeitura
 import config
 
@@ -70,6 +71,18 @@ class InterfaceUsuario:
         self.leitura_referencia = False
         
         self.tela_leitura = TelaLeitura(self.janela)
+        try:
+            self.som_bebendo = Sound("assets/bebendo.wav")
+        except Exception:
+            self.som_bebendo = None
+        try:
+            self.som_escavando = Sound("assets/escavando.oga")
+        except Exception:
+            self.som_escavando = None
+        try:
+            self.som_investigando = Sound("assets/investigando.wav")
+        except Exception:
+            self.som_investigando = None
 
     def calcular_disposicao(self):
         quadriculos_painel = config.INTERFACE_USUARIO.get('altura_painel_em_quadriculos', 2)

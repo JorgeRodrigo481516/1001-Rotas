@@ -76,6 +76,8 @@ class Jogador:
         self.tecla_f_pressionada = False
 
         self.mecanicas_caverna = None
+        self._tocando_som_escavando = False
+        self._tocando_som_investigando = False
 
     def atualizar(self, teclado, tempo_decorrido):
         self.processar_comandos(teclado)
@@ -214,13 +216,27 @@ class Jogador:
                  if self.mapa.iniciar_investigacao(coluna, linha):
                      if self.interface:
                         self.interface.aplicar_custo_investigacao()
+                     try:
+                         if self.interface and getattr(self.interface, 'som_investigando', None):
+                             self.interface.som_investigando.set_repeat(True)
+                             self.interface.som_investigando.play()
+                             self._tocando_som_investigando = True
+                     except Exception:
+                         pass
 
         if teclado.key_pressed("SPACE"):
             coluna, linha = self.obter_coordenadas_grade(self.mapa.largura_quadriculo, self.mapa.altura_quadriculo)
             possui_pa = self.interface.tem_item('pa') if self.interface else False
             if possui_pa and self.interface:
                 self.interface.consumir_uso_por_nome('pa')
-            self.mapa.iniciar_escavacao(coluna, linha, tem_pa=possui_pa)
+            iniciou = self.mapa.iniciar_escavacao(coluna, linha, tem_pa=possui_pa)
+            if iniciou:
+                try:
+                    if self.interface and getattr(self.interface, 'som_escavando', None):
+                        self.interface.som_escavando.set_repeat(True)
+                        self.interface.som_escavando.play()
+                except Exception:
+                    pass
 
         if self.interface:
             indice_acionado = self.interface.obter_indice_item_acionado(teclado)
@@ -291,6 +307,10 @@ class Jogador:
         self._temporizador_bebida = 0.0
         self._duracao_bebida = float(duracao)
         self._indice_espaco_bebida = int(indice_espaco)
+        
+        if self.interface and getattr(self.interface, 'som_bebendo', None):
+            self.interface.som_bebendo.play()
+        
         return True
 
     def exibir_mensagem_cabeca(self, texto, duracao=2.0):
@@ -320,6 +340,12 @@ class Jogador:
     def processar_escavacao(self, tempo_decorrido):
         if not self.interface:
             return False, None
+        try:
+            if not self.mapa.esta_escavando() and getattr(self.interface, 'som_escavando', None):
+                self.interface.som_escavando.set_repeat(False)
+                self.interface.som_escavando.stop()
+        except Exception:
+            pass
         
         tem_pa = self.interface.tem_item('pa')
         tem_faca = self.interface.tem_item('faca')
@@ -343,7 +369,21 @@ class Jogador:
             elif resultado == 'falha':
                 self.exibir_mensagem_cabeca(config.MENSAGENS['erro_escavacao_falha'], 
                     duracao=config.INTERFACE_USUARIO['duracao_msg_cabeca_padrao'])
-            
+            try:
+                if getattr(self.interface, 'som_escavando', None):
+                    self.interface.som_escavando.set_repeat(False)
+                    self.interface.som_escavando.stop()
+                    self._tocando_som_escavando = False
+            except Exception:
+                pass
+            try:
+                if getattr(self.interface, 'som_investigando', None) and getattr(self.mapa, 'esta_investigando', None):
+                    if not self.mapa.esta_investigando():
+                        self.interface.som_investigando.set_repeat(False)
+                        self.interface.som_investigando.stop()
+                        self._tocando_som_investigando = False
+            except Exception:
+                pass
             return True, valor_dado
         
         return False, None
@@ -373,3 +413,12 @@ class Jogador:
         caindo = self.mecanicas_caverna.esta_caindo() if self.mecanicas_caverna else False
         lendo = self.interface.lendo_pergaminho if self.interface else False
         return self.mapa.esta_escavando() or self.mapa.esta_investigando() or self._bebendo or caindo or lendo
+
+    def parar_som_investigando(self):
+        try:
+            if self.interface and getattr(self.interface, 'som_investigando', None):
+                self.interface.som_investigando.set_repeat(False)
+                self.interface.som_investigando.stop()
+        except Exception:
+            pass
+        self._tocando_som_investigando = False

@@ -46,6 +46,7 @@ combate = None
 controlador_mecanicas_caverna = None
 tela_combate = None
 primeira_inicializacao = True
+investigacao_ativa_anterior = False
 
 def inicializar_recursos_jogo():
     global mapa_deserto, mapa_caverna, mapa_ativo, interface, jogador, combate, controlador_mecanicas_caverna
@@ -151,6 +152,13 @@ while True:
 
             terminou_escavacao, valor_dado = jogador.processar_escavacao(tempo_decorrido)
             investigando_ativo, _ = mapa_ativo.atualizar_investigacao(tempo_decorrido)
+
+            try:
+                if investigacao_ativa_anterior and not investigando_ativo and jogador is not None:
+                    jogador.parar_som_investigando()
+            except Exception:
+                pass
+            investigacao_ativa_anterior = investigando_ativo
 
             if terminou_escavacao and valor_dado is not None:
                 tipo_mapa = getattr(mapa_ativo, 'tipo', 'DESERTO')
