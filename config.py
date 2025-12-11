@@ -119,7 +119,7 @@ JOGABILIDADE = {
     'dado_escavacao': 20,
     'usos_pa': 6,
     'usos_faca': 9,
-    'distribuicao_itens': {'agua': 0.35, 'pa': 0.05, 'faca': 0.05},
+    'distribuicao_itens': {'agua': 0.45, 'pa': 0.10, 'faca': 0.10},
     
     'custo_investigacao_sede': 30,
     'custo_investigacao_sol': 30,
@@ -161,7 +161,7 @@ COMBATE = {
     'limiar_sucesso_item': 9,
     'limiar_acerto_inimigo': 10,
     'turnos_imunidade': 2,
-    'multiplicador_chance_combate': 3,
+    'multiplicador_chance_combate': 2,
     'penalidade_golem': -2,
     'multiplicador_critico_inimigo': 200,
     'tempo_mensagem_critico': 6.0,

@@ -117,7 +117,7 @@ class InterfaceUsuario:
 
         self.trilha_sonora = None
 
-    def iniciar_trilha(self, caminho="assets/trilha.ogg", volume=5):
+    def iniciar_trilha(self, caminho="assets/trilha.ogg", volume=10):
         """
         DESCRIÇÃO:
             Inicia a trilha sonora do jogo, carregando o arquivo e configurando repetição/volume.
