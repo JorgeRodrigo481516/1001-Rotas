@@ -4,7 +4,7 @@ Jogo 2D de sobrevivência e exploração em Python com PPlay.
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-orange)
-![Licença](https://img.shields.io/badge/licenca-a%20definir-lightgrey)
+![Licença](https://img.shields.io/badge/license-a%20definir-lightgrey)
 
 ## Sobre o jogo
 
@@ -27,7 +27,7 @@ Jogo 2D de sobrevivência e exploração em Python com PPlay.
 ## Estrutura do projeto
 
 | Arquivo | Responsabilidade |
-|---|---|
+| --- | --- |
 | `main.py` | Ponto de entrada, orquestrador e game loop |
 | `config.py` | Constantes globais: dimensões, cores, balanceamento, caminhos de assets |
 | `mapa.py` | Construção e renderização do grid, escavação, investigação e passagens |
