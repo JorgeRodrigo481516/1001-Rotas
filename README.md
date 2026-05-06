@@ -4,7 +4,7 @@ Jogo 2D de sobrevivência e exploração em Python com PPlay.
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-orange)
-![Licenca](https://img.shields.io/badge/licenca-a%20definir-lightgrey)
+![Licença](https://img.shields.io/badge/licenca-a%20definir-lightgrey)
 
 ## Sobre o jogo
 
